@@ -1,0 +1,26 @@
+Metadata-Version: 2.4
+Name: deep-research-agent
+Version: 0.1.0
+Summary: Agentic RAG Deep Research Agent — autonomous query decomposition, adaptive retrieval, quality critique, and report synthesis
+Requires-Python: >=3.12
+Requires-Dist: langgraph>=0.2.0
+Requires-Dist: langchain>=0.3.0
+Requires-Dist: langchain-community>=0.3.0
+Requires-Dist: fastapi>=0.115.0
+Requires-Dist: uvicorn[standard]>=0.30.0
+Requires-Dist: sse-starlette>=2.0.0
+Requires-Dist: pymilvus>=2.4.0
+Requires-Dist: chromadb>=0.5.0
+Requires-Dist: sentence-transformers>=3.0.0
+Requires-Dist: streamlit>=1.35.0
+Requires-Dist: openai>=1.50.0
+Requires-Dist: pydantic>=2.8.0
+Requires-Dist: pydantic-settings>=2.5.0
+Requires-Dist: rank-bm25>=0.2.2
+Requires-Dist: numpy>=1.26.0
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: python-dotenv>=1.0.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.24.0; extra == "dev"
+Requires-Dist: pytest-cov>=5.0.0; extra == "dev"
