@@ -1,7 +1,5 @@
 ## Context
 
-刘悦在搜狐完成了两个 AI Agent 项目：基于 ReAct 的数据分析 Agent（Text-to-SQL）和基于被动式 RAG 的智能客服系统。智能客服系统的核心局限在于：检索策略是固定的（用户问 → Embedding → Top-K 召回 → 回答），Agent 不具备自主判断检索质量、改写查询、多轮深挖的能力。
-
 本项目将 Agent 决策能力引入 RAG 链路，构建一个能"主动研究"而非"被动检索"的 Deep Research Agent，与已有 sql-agent-kit（结构化数据查询）形成互补，覆盖 Agent 面试中"结构化 + 非结构化"两大数据场景。
 
 技术选型与已有项目保持连续性：LangGraph（已有经验）、Milvus（已有经验）、Qwen（已有经验）、FastAPI + SSE（已有经验）、MCP（后续版本复用）。

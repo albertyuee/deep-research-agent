@@ -42,6 +42,9 @@ async def submit_research(req: ResearchRequest):
     # Run agent in background
     asyncio.create_task(_run_agent(task_id, req.query))
 
+    import sys
+    print(f"[ROUTER] Task {task_id} submitted, query={req.query[:60]}", flush=True, file=sys.stderr)
+
     return ResearchResponse(
         success=True,
         data={"task_id": task_id},
@@ -87,12 +90,17 @@ async def get_research_status(task_id: str):
 
 async def _run_agent(task_id: str, query: str):
     """Execute the agent graph for a research task."""
+    import sys, time
     try:
+        print(f"[AGENT {task_id}] _run_agent START, query={query[:60]}", flush=True, file=sys.stderr)
         initial_state = {
             "query": query,
             "task_id": task_id,
         }
+        t0 = time.time()
+        print(f"[AGENT {task_id}] Calling agent_graph.ainvoke...", flush=True, file=sys.stderr)
         result = await agent_graph.ainvoke(initial_state)
+        print(f"[AGENT {task_id}] ainvoke DONE after {time.time()-t0:.1f}s", flush=True, file=sys.stderr)
 
         final_report = result.get("final_report", "")
         task_manager.set_result(task_id, {

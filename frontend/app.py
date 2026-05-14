@@ -31,6 +31,8 @@ if "sources" not in st.session_state:
     st.session_state["sources"] = []
 if "progress" not in st.session_state:
     st.session_state["progress"] = AgentProgressDisplay()
+if "backend_error" not in st.session_state:
+    st.session_state["backend_error"] = ""
 
 
 # Input area
@@ -57,6 +59,7 @@ if submit and query.strip():
     st.session_state["agent_steps"] = []
     st.session_state["research_plan"] = []
     st.session_state["critique_results"] = []
+    st.session_state["backend_error"] = ""
     st.rerun()
 
 
@@ -67,9 +70,6 @@ with left:
     st.markdown("### 🤖 Agent 思考过程")
     progress_placeholder = st.empty()
 
-    if st.session_state["is_running"]:
-        progress_placeholder.info("Agent 正在运行... 请查看右侧报告区等待结果")
-
 with right:
     st.markdown("### 📊 研究报告")
     report_placeholder = st.empty()
@@ -78,14 +78,20 @@ with right:
 # If running, connect to backend and stream events
 if st.session_state["is_running"] and query.strip():
     async def run_research():
-        async with httpx.AsyncClient(timeout=httpx.Timeout(10)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(30)) as client:
             # Submit task
-            resp = await client.post(
-                f"{BACKEND_URL}/api/v1/research",
-                json={"query": query},
-            )
+            try:
+                resp = await client.post(
+                    f"{BACKEND_URL}/api/v1/research",
+                    json={"query": query},
+                )
+            except Exception as e:
+                st.session_state["backend_error"] = f"无法连接后端: {e}"
+                st.session_state["is_running"] = False
+                return
+
             if resp.status_code != 200:
-                st.error(f"提交失败: {resp.text}")
+                st.session_state["backend_error"] = f"提交失败: {resp.text}"
                 st.session_state["is_running"] = False
                 return
 
@@ -96,53 +102,79 @@ if st.session_state["is_running"] and query.strip():
             url = f"{BACKEND_URL}/api/v1/research/{task_id}/stream"
             report_text = ""
 
-            async with client.stream("GET", url, timeout=httpx.Timeout(300)) as stream:
-                async for line in stream.aiter_lines():
-                    if not line.startswith("data: "):
-                        continue
+            try:
+                async with client.stream("GET", url, timeout=httpx.Timeout(600, connect=30)) as stream:
+                    async for line in stream.aiter_lines():
+                        if not line.startswith("data: "):
+                            continue
 
-                    import json
-                    try:
-                        event = json.loads(line[6:])
-                    except json.JSONDecodeError:
-                        continue
+                        import json
+                        try:
+                            event = json.loads(line[6:])
+                        except json.JSONDecodeError:
+                            continue
 
-                    event_type = event.get("event", "")
-                    data = event.get("data", {})
+                        event_type = event.get("event", "")
+                        data = event.get("data", {})
 
-                    # Handle synthesis chunks
-                    if event_type == "synthesis_chunk":
-                        report_text += data.get("text", "")
-                        report_placeholder.markdown(report_text)
+                        # Handle synthesis chunks
+                        if event_type == "synthesis_chunk":
+                            report_text += data.get("text", "")
+                            report_placeholder.markdown(report_text)
 
-                    # Update progress
-                    st.session_state["progress"].handle_event(event_type, data)
-
-                    with progress_placeholder.container():
-                        render_progress_panel()
-
-                    # Capture sources
-                    if event_type == "done":
-                        # Fetch final result
-                        status_resp = await client.get(
-                            f"{BACKEND_URL}/api/v1/research/{task_id}"
-                        )
-                        if status_resp.status_code == 200:
-                            result = status_resp.json()["data"]["result"]
-                            if result:
-                                st.session_state["report"] = result.get("report", report_text)
-                                report_placeholder.markdown(st.session_state["report"])
-                                st.session_state["sources"] = result.get("sources", [])
-
-                        st.session_state["is_running"] = False
+                        # Update progress
+                        st.session_state["progress"].handle_event(event_type, data)
 
                         with progress_placeholder.container():
                             render_progress_panel()
-                        break
+
+                        # Capture sources
+                        if event_type == "done":
+                            # Fetch final result
+                            try:
+                                status_resp = await client.get(
+                                    f"{BACKEND_URL}/api/v1/research/{task_id}"
+                                )
+                                if status_resp.status_code == 200:
+                                    body = status_resp.json()
+                                    result = body.get("data", {}).get("result")
+                                    if result:
+                                        st.session_state["report"] = result.get("report", report_text)
+                                        report_placeholder.markdown(st.session_state["report"])
+                                        st.session_state["sources"] = result.get("sources", [])
+                            except Exception:
+                                st.session_state["report"] = report_text
+                                report_placeholder.markdown(report_text)
+
+                            st.session_state["is_running"] = False
+                            with progress_placeholder.container():
+                                render_progress_panel()
+                            return
+
+            except asyncio.TimeoutError:
+                st.session_state["backend_error"] = "研究超时（600 秒），请检查后端日志"
+            except httpx.ReadTimeout:
+                st.session_state["backend_error"] = "SSE 连接读取超时 — Agent 可能仍在后台运行，请稍后查看结果"
+            except httpx.ConnectTimeout:
+                st.session_state["backend_error"] = "SSE 连接超时 — 请确认后端已启动"
+            except Exception as e:
+                err_msg = str(e) or type(e).__name__
+                st.session_state["backend_error"] = f"SSE 连接中断: {err_msg}"
+
+            st.session_state["is_running"] = False
 
     try:
         asyncio.run(run_research())
     except Exception as e:
-        st.error(f"连接后端失败: {e}")
-        st.info("请确保后端已启动: `uvicorn backend.main:app --reload`")
+        st.session_state["backend_error"] = f"连接后端失败: {e}"
         st.session_state["is_running"] = False
+
+# Show backend error if any
+if st.session_state.get("backend_error"):
+    st.error(st.session_state["backend_error"])
+    st.info("请确保后端已启动: `uvicorn backend.main:app --reload`")
+
+# If running, do one final render of progress after async completes
+if st.session_state["is_running"]:
+    with progress_placeholder.container():
+        render_progress_panel()

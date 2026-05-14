@@ -1,62 +1,129 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from typing import AsyncIterator
 
-from openai import AsyncOpenAI
+import httpx
 
 from research_agent.llm.base import BaseLLMClient
 
+logger = logging.getLogger(__name__)
+
+DEFAULT_TIMEOUT = 120.0
+DEFAULT_MAX_RETRIES = 1
+
 
 class OpenAIClient(BaseLLMClient):
-    """OpenAI-compatible LLM client."""
+    """OpenAI-compatible LLM client using httpx.AsyncClient directly."""
 
     def __init__(self, model: str, api_key: str, base_url: str = "", **kwargs):
         self.model = model
         self.temperature = kwargs.get("temperature", 0.3)
         self.max_tokens = kwargs.get("max_tokens", 4096)
-        client_kwargs = {"api_key": api_key}
-        if base_url:
-            client_kwargs["base_url"] = base_url
-        self.client = AsyncOpenAI(**client_kwargs)
+        self.timeout = kwargs.get("timeout", DEFAULT_TIMEOUT)
+        self.max_retries = kwargs.get("max_retries", DEFAULT_MAX_RETRIES)
+        self.base_url = (base_url.rstrip("/") if base_url else "https://api.openai.com/v1")
+        self.api_key = api_key
+
+    def _headers(self) -> dict:
+        return {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+
+    def _build_body(self, messages: list[dict], **kwargs) -> dict:
+        body = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": kwargs.get("temperature", self.temperature),
+            "max_tokens": kwargs.get("max_tokens", self.max_tokens),
+        }
+        if "response_format" in kwargs:
+            body["response_format"] = kwargs["response_format"]
+        return body
+
+    async def _post(self, body: dict) -> dict:
+        """Make async API call, return parsed JSON."""
+        async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout, connect=30.0)) as client:
+            resp = await client.post(
+                f"{self.base_url}/chat/completions",
+                json=body,
+                headers=self._headers(),
+            )
+            if resp.status_code != 200:
+                raise RuntimeError(f"API error {resp.status_code}: {resp.text[:300]}")
+            return resp.json()
+
+    async def _retry(self, fn, label: str):
+        last_error = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                return await fn()
+            except Exception as e:
+                last_error = e
+                if attempt < self.max_retries:
+                    wait = 2 ** attempt
+                    logger.warning(f"LLM {label} attempt {attempt+1} failed: {e}. Retrying in {wait}s...")
+                    await asyncio.sleep(wait)
+        raise last_error
 
     async def chat(self, messages: list[dict], **kwargs) -> str:
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=kwargs.get("temperature", self.temperature),
-            max_tokens=kwargs.get("max_tokens", self.max_tokens),
-        )
-        return response.choices[0].message.content or ""
+        body = self._build_body(messages, **kwargs)
+
+        async def _fn():
+            data = await self._post(body)
+            return data["choices"][0]["message"]["content"] or ""
+
+        return await self._retry(_fn, "chat")
 
     async def stream_chat(self, messages: list[dict], **kwargs) -> AsyncIterator[str]:
-        stream = await self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=kwargs.get("temperature", self.temperature),
-            max_tokens=kwargs.get("max_tokens", self.max_tokens),
-            stream=True,
-        )
-        async for chunk in stream:
-            delta = chunk.choices[0].delta
-            if delta.content:
-                yield delta.content
+        body = self._build_body(messages, **kwargs)
+        body["stream"] = True
+
+        async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout, connect=30.0)) as client:
+            async with client.stream(
+                "POST",
+                f"{self.base_url}/chat/completions",
+                json=body,
+                headers=self._headers(),
+            ) as resp:
+                if resp.status_code != 200:
+                    raise RuntimeError(f"API error {resp.status_code}")
+                async for line in resp.aiter_lines():
+                    if line.startswith("data: "):
+                        data_str = line[6:]
+                        if data_str == "[DONE]":
+                            break
+                        try:
+                            d = json.loads(data_str)
+                            choices = d.get("choices", [])
+                            if choices:
+                                delta = choices[0].get("delta", {})
+                                content = delta.get("content", "")
+                                if content:
+                                    yield content
+                        except json.JSONDecodeError:
+                            pass
 
     async def chat_structured(
         self, messages: list[dict], output_schema: dict, **kwargs
     ) -> dict:
-        schema_prompt = (
-            f"\nRespond in JSON format following this schema:\n{json.dumps(output_schema, indent=2)}\n"
+        user_msg = dict(messages[-1])
+        user_msg["content"] = user_msg.get("content", "") + (
+            f"\nRespond in JSON format following this schema:\n"
+            f"{json.dumps(output_schema, indent=2)}\n"
             f"Return ONLY the JSON object, no other text."
         )
-        messages[-1]["content"] += schema_prompt
-
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=kwargs.get("temperature", 0.1),
-            max_tokens=kwargs.get("max_tokens", self.max_tokens),
-            response_format={"type": "json_object"},
+        msgs = messages[:-1] + [user_msg]
+        body = self._build_body(
+            msgs, response_format={"type": "json_object"}, temperature=0.1, **kwargs
         )
-        content = response.choices[0].message.content or "{}"
-        return json.loads(content)
+
+        async def _fn():
+            data = await self._post(body)
+            content = data["choices"][0]["message"]["content"] or "{}"
+            return json.loads(content)
+
+        return await self._retry(_fn, "chat_structured")

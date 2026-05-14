@@ -17,6 +17,7 @@ class RetrievalStep(TypedDict, total=False):
 class ResearchState(TypedDict, total=False):
     # Input
     query: str
+    task_id: str
 
     # Decomposition
     sub_queries: list[dict]

@@ -13,6 +13,9 @@ decides whether to retry retrieval or proceed to synthesis.
 
 from __future__ import annotations
 
+import sys
+import time as _time
+
 from langgraph.graph import StateGraph, END
 
 from research_agent.state import ResearchState
@@ -32,6 +35,10 @@ from research_agent.synthesis.report_generator import generate_report_streaming
 from research_agent.synthesis.citation import build_citation_map, build_references_section, format_citation, Citation
 from config.settings import settings
 
+# Debug helper — prints to stderr (captured by uvicorn log)
+def _dbg(task_id: str, msg: str) -> None:
+    print(f"[AGENT-DBG {task_id}] {msg}", flush=True, file=sys.stderr)
+
 
 # ──────────────────── Node: Decomposition ────────────────────
 
@@ -41,10 +48,20 @@ async def decomposition_node(state: ResearchState) -> ResearchState:
     task_id = state.get("task_id", "")
     query = state["query"]
 
+    _dbg(task_id, "decomposition_node ENTER")
     emit(task_id, "research_plan_start", {"query": query})
 
+    _dbg(task_id, "creating LLM client...")
     client = create_llm_client()
-    sub_queries = await decompose_query(client, query)
+    _dbg(task_id, f"calling decompose_query (model={client.model})...")
+    t0 = _time.time()
+    try:
+        sub_queries = await decompose_query(client, query)
+        _dbg(task_id, f"decompose_query OK after {_time.time()-t0:.1f}s, {len(sub_queries)} sub-queries")
+    except Exception as e:
+        _dbg(task_id, f"decompose_query FAILED after {_time.time()-t0:.1f}s: {e}")
+        raise
+
     plan = ResearchPlan.from_decomposition(query, sub_queries)
 
     for sq in sub_queries:
@@ -65,6 +82,7 @@ async def decomposition_node(state: ResearchState) -> ResearchState:
     state["retry_history"] = []
     state["low_confidence_steps"] = []
 
+    _dbg(task_id, "decomposition_node EXIT")
     return state
 
 
@@ -159,9 +177,15 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
 
 
 async def critique_node(state: ResearchState) -> ResearchState:
-    """Evaluate retrieval quality and decide pass/fail."""
+    """Evaluate retrieval quality, decide pass/fail, and handle step advancement.
+
+    This node also handles post-critique state updates that were previously
+    in the conditional edge function (should_retry), since LangGraph conditional
+    edge functions must be pure (no state mutation).
+    """
     task_id = state.get("task_id", "")
     step_idx = state["current_step"]
+    total = state.get("total_steps", 1)
 
     emit(task_id, "critique_start", {"step": step_idx + 1})
 
@@ -190,6 +214,27 @@ async def critique_node(state: ResearchState) -> ResearchState:
         "passed": critique.passed,
         "retry_suggestion": critique.retry_suggestion,
     })
+
+    # ── Post-critique state management (moved from should_retry) ──
+    retry_count = state.get("retry_count", 0)
+    max_retries = state.get("max_retries", settings.retrieval.max_retries)
+
+    if critique.passed:
+        _save_step_results(state)
+        state["current_step"] = step_idx + 1
+        state["retry_count"] = 0
+    elif retry_count < max_retries - 1:
+        state["retry_count"] = retry_count + 1
+        state["retry_history"].append({
+            "step": step_idx,
+            "attempt": retry_count + 1,
+            "score": critique.composite_score,
+        })
+    else:
+        state["low_confidence_steps"].append(step_idx + 1)
+        _save_step_results(state)
+        state["current_step"] = step_idx + 1
+        state["retry_count"] = 0
 
     return state
 
@@ -251,48 +296,19 @@ async def synthesis_node(state: ResearchState) -> ResearchState:
 
 
 def should_retry(state: ResearchState) -> str:
-    """Determine the next node after critique.
+    """Pure routing function — reads state, returns next node.
+    All state mutations have been moved to critique_node.
 
     Returns:
-        "retrieval" — retry current step
-        "advance" — move to next step or synthesis
+        "retrieval" — go to retrieval node (next step or retry)
         "synthesis" — all steps done, proceed to synthesis
     """
+    task_id = state.get("task_id", "")
     step_idx = state.get("current_step", 0)
     total = state.get("total_steps", 1)
-    passed = state.get("critique_passed", False)
-    retry_count = state.get("retry_count", 0)
-    max_retries = settings.retrieval.max_retries
-
-    if passed:
-        # Save successful results
-        _save_step_results(state)
-        # Advance to next step
-        next_step = step_idx + 1
-        state["current_step"] = next_step
-        state["retry_count"] = 0
-        if next_step >= total:
-            return "synthesis"
-        return "retrieval"
-    elif retry_count < max_retries - 1:
-        # Retry
-        state["retry_count"] = retry_count + 1
-        state["retry_history"].append({
-            "step": step_idx,
-            "attempt": retry_count + 1,
-            "score": state.get("critique_result", {}).get("composite_score", 0),
-        })
-        return "retrieval"
-    else:
-        # Exhausted — save with low confidence, advance
-        state["low_confidence_steps"].append(step_idx + 1)
-        _save_step_results(state)
-        next_step = step_idx + 1
-        state["current_step"] = next_step
-        state["retry_count"] = 0
-        if next_step >= total:
-            return "synthesis"
-        return "retrieval"
+    route = "synthesis" if step_idx >= total else "retrieval"
+    _dbg(task_id, f"should_retry: step={step_idx}/{total} → {route}")
+    return route
 
 
 def _save_step_results(state: ResearchState) -> None:

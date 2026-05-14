@@ -1,0 +1,1040 @@
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/langgraph/cache/base/__init__.py:8: LangChainPendingDeprecationWarning: The default value of `allowed_objects` will change in a future version. Pass an explicit value (e.g., allowed_objects='messages' or allowed_objects='core') to suppress this warning.
+  from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+[ROUTER] Task 0fb07dd0a2ee submitted, query=人工智能在医疗影像中的应用？简短回答
+[AGENT 0fb07dd0a2ee] _run_agent START, query=人工智能在医疗影像中的应用？简短回答
+[AGENT 0fb07dd0a2ee] Calling agent_graph.ainvoke...
+[AGENT-DBG ] decomposition_node ENTER
+[AGENT-DBG ] creating LLM client...
+[AGENT-DBG ] calling decompose_query (model=deepseek-ai/DeepSeek-V3)...
+[AGENT-DBG ] decompose_query OK after 15.6s, 3 sub-queries
+[AGENT-DBG ] decomposition_node EXIT
+[AGENT-DBG ] should_retry: step=1/3 → retrieval
+[AGENT-DBG ] should_retry: step=2/3 → retrieval
+[AGENT-DBG ] should_retry: step=3/3 → synthesis
+[AGENT 0fb07dd0a2ee] ainvoke DONE after 90.1s
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/langgraph/cache/base/__init__.py:8: LangChainPendingDeprecationWarning: The default value of `allowed_objects` will change in a future version. Pass an explicit value (e.g., allowed_objects='messages' or allowed_objects='core') to suppress this warning.
+  from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+[ROUTER] Task 288b6fdbda0b submitted, query=人工智能在医疗影像和药物研发中的应用有什么区别?
+[AGENT 288b6fdbda0b] _run_agent START, query=人工智能在医疗影像和药物研发中的应用有什么区别?
+[AGENT 288b6fdbda0b] Calling agent_graph.ainvoke...
+[AGENT-DBG ] decomposition_node ENTER
+[AGENT-DBG ] creating LLM client...
+[AGENT-DBG ] calling decompose_query (model=deepseek-ai/DeepSeek-V3)...
+[AGENT-DBG ] decompose_query OK after 18.2s, 4 sub-queries
+[AGENT-DBG ] decomposition_node EXIT
+[AGENT-DBG ] should_retry: step=1/4 → retrieval
+[AGENT-DBG ] should_retry: step=2/4 → retrieval
+[AGENT-DBG ] should_retry: step=2/4 → retrieval
+[AGENT-DBG ] should_retry: step=2/4 → retrieval
+[AGENT-DBG ] should_retry: step=3/4 → retrieval
+[AGENT-DBG ] should_retry: step=3/4 → retrieval
+[AGENT-DBG ] should_retry: step=4/4 → synthesis
+[AGENT 288b6fdbda0b] ainvoke DONE after 139.4s
+[ROUTER] Task 2f6fbc6d11cb submitted, query=人工智能在医疗影像和药物研发中的应用有什么区别?
+[AGENT 2f6fbc6d11cb] _run_agent START, query=人工智能在医疗影像和药物研发中的应用有什么区别?
+[AGENT 2f6fbc6d11cb] Calling agent_graph.ainvoke...
+[AGENT-DBG ] decomposition_node ENTER
+[AGENT-DBG ] creating LLM client...
+[AGENT-DBG ] calling decompose_query (model=deepseek-ai/DeepSeek-V3)...
+[AGENT-DBG ] decompose_query OK after 30.9s, 4 sub-queries
+[AGENT-DBG ] decomposition_node EXIT
+[AGENT-DBG ] should_retry: step=1/4 → retrieval
+[ROUTER] Task cc00dd6c36c3 submitted, query=人工智能在医疗影像和药物研发中的应用有什么区别?
+[AGENT cc00dd6c36c3] _run_agent START, query=人工智能在医疗影像和药物研发中的应用有什么区别?
+[AGENT cc00dd6c36c3] Calling agent_graph.ainvoke...
+[AGENT-DBG ] decomposition_node ENTER
+[AGENT-DBG ] creating LLM client...
+[AGENT-DBG ] calling decompose_query (model=deepseek-ai/DeepSeek-V3)...
+[AGENT-DBG ] should_retry: step=2/4 → retrieval
+[AGENT-DBG ] should_retry: step=2/4 → retrieval
+[AGENT-DBG ] decompose_query OK after 27.3s, 4 sub-queries
+[AGENT-DBG ] decomposition_node EXIT
+[AGENT-DBG ] should_retry: step=2/4 → retrieval
+[AGENT-DBG ] should_retry: step=1/4 → retrieval
+[AGENT-DBG ] should_retry: step=3/4 → retrieval
+[AGENT-DBG ] should_retry: step=2/4 → retrieval
+[AGENT-DBG ] should_retry: step=3/4 → retrieval
+[AGENT-DBG ] should_retry: step=3/4 → retrieval
+[AGENT-DBG ] should_retry: step=3/4 → retrieval
+[AGENT-DBG ] should_retry: step=4/4 → synthesis
+[AGENT-DBG ] should_retry: step=4/4 → synthesis
+[AGENT cc00dd6c36c3] ainvoke DONE after 122.3s
+[AGENT 2f6fbc6d11cb] ainvoke DONE after 174.7s
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/langgraph/cache/base/__init__.py:8: LangChainPendingDeprecationWarning: The default value of `allowed_objects` will change in a future version. Pass an explicit value (e.g., allowed_objects='messages' or allowed_objects='core') to suppress this warning.
+  from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+[ROUTER] Task ae48f8af675a submitted, query=人工智能在医疗影像中的应用？简短回答
+[AGENT ae48f8af675a] _run_agent START, query=人工智能在医疗影像中的应用？简短回答
+[AGENT ae48f8af675a] Calling agent_graph.ainvoke...
+[AGENT-DBG ] decomposition_node ENTER
+[AGENT-DBG ] creating LLM client...
+[AGENT-DBG ] calling decompose_query (model=deepseek-ai/DeepSeek-V3)...
+[AGENT-DBG ] decompose_query OK after 16.9s, 3 sub-queries
+[AGENT-DBG ] decomposition_node EXIT
+[AGENT-DBG ] should_retry: step=1/3 → retrieval
+[AGENT-DBG ] should_retry: step=2/3 → retrieval
+[AGENT-DBG ] should_retry: step=2/3 → retrieval
+[AGENT-DBG ] should_retry: step=2/3 → retrieval
+[AGENT-DBG ] should_retry: step=3/3 → synthesis
+[AGENT ae48f8af675a] ainvoke DONE after 121.1s
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/langgraph/cache/base/__init__.py:8: LangChainPendingDeprecationWarning: The default value of `allowed_objects` will change in a future version. Pass an explicit value (e.g., allowed_objects='messages' or allowed_objects='core') to suppress this warning.
+  from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+[ROUTER] Task 074e88f37387 submitted, query=人工智能在医疗影像中的应用？简短回答
+[AGENT 074e88f37387] _run_agent START, query=人工智能在医疗影像中的应用？简短回答
+[AGENT 074e88f37387] Calling agent_graph.ainvoke...
+[AGENT-DBG ] decomposition_node ENTER
+[AGENT-DBG ] creating LLM client...
+[AGENT-DBG ] calling decompose_query (model=deepseek-ai/DeepSeek-V3)...
+[AGENT-DBG ] decompose_query OK after 22.7s, 3 sub-queries
+[AGENT-DBG ] decomposition_node EXIT
+[AGENT-DBG ] should_retry: step=1/3 → retrieval
+[AGENT-DBG ] should_retry: step=2/3 → retrieval
+[AGENT-DBG ] should_retry: step=3/3 → synthesis
+[AGENT 074e88f37387] ainvoke DONE after 87.2s
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/langgraph/cache/base/__init__.py:8: LangChainPendingDeprecationWarning: The default value of `allowed_objects` will change in a future version. Pass an explicit value (e.g., allowed_objects='messages' or allowed_objects='core') to suppress this warning.
+  from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+[EVENTBUS] create_task: e82b217c65e8
+[ROUTER] Task e82b217c65e8 submitted, query=什么是RAG？简短回答
+[AGENT e82b217c65e8] _run_agent START, query=什么是RAG？简短回答
+[AGENT e82b217c65e8] Calling agent_graph.ainvoke...
+[AGENT-DBG ] decomposition_node ENTER
+[AGENT-DBG ] creating LLM client...
+[AGENT-DBG ] calling decompose_query (model=deepseek-ai/DeepSeek-V3)...
+[EVENTBUS] subscribe START: e82b21... buf_size=0
+[AGENT-DBG ] decompose_query OK after 5.1s, 1 sub-queries
+[AGENT-DBG ] decomposition_node EXIT
+[AGENT-DBG ] should_retry: step=1/1 → synthesis
+[AGENT e82b217c65e8] ainvoke DONE after 47.7s
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/langgraph/cache/base/__init__.py:8: LangChainPendingDeprecationWarning: The default value of `allowed_objects` will change in a future version. Pass an explicit value (e.g., allowed_objects='messages' or allowed_objects='core') to suppress this warning.
+  from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+[EVENTBUS] create_task: 22352bd39e9d
+[ROUTER] Task 22352bd39e9d submitted, query=什么是RAG？简短回答
+[AGENT 22352bd39e9d] _run_agent START, query=什么是RAG？简短回答
+[AGENT 22352bd39e9d] Calling agent_graph.ainvoke...
+[AGENT-DBG 22352bd39e9d] decomposition_node ENTER
+[EVENTBUS] emit: 22352b... research_plan_start
+[AGENT-DBG 22352bd39e9d] creating LLM client...
+[AGENT-DBG 22352bd39e9d] calling decompose_query (model=deepseek-ai/DeepSeek-V3)...
+[EVENTBUS] subscribe START: 22352b... buf_size=1
+[AGENT-DBG 22352bd39e9d] decompose_query OK after 6.4s, 1 sub-queries
+[EVENTBUS] emit: 22352b... research_plan_chunk
+[AGENT-DBG 22352bd39e9d] decomposition_node EXIT
+[EVENTBUS] emit: 22352b... retrieval_start
+[EVENTBUS] emit: 22352b... retrieval_result
+[EVENTBUS] emit: 22352b... critique_start
+[EVENTBUS] emit: 22352b... critique_result
+[AGENT-DBG 22352bd39e9d] should_retry: step=1/1 → synthesis
+[EVENTBUS] emit: 22352b... synthesis_start
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... synthesis_chunk
+[EVENTBUS] emit: 22352b... done
+[EVENTBUS] subscribe DONE: 22352b... yielded=352
+[AGENT 22352bd39e9d] ainvoke DONE after 50.6s
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/langgraph/cache/base/__init__.py:8: LangChainPendingDeprecationWarning: The default value of `allowed_objects` will change in a future version. Pass an explicit value (e.g., allowed_objects='messages' or allowed_objects='core') to suppress this warning.
+  from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+[EVENTBUS] create_task: b946037adb75
+[ROUTER] Task b946037adb75 submitted, query=人工智能在医疗影像和药物研发中的应用有什么区别？
+[AGENT b946037adb75] _run_agent START, query=人工智能在医疗影像和药物研发中的应用有什么区别？
+[AGENT b946037adb75] Calling agent_graph.ainvoke...
+[AGENT-DBG b946037adb75] decomposition_node ENTER
+[EVENTBUS] emit: b94603... research_plan_start
+[AGENT-DBG b946037adb75] creating LLM client...
+[AGENT-DBG b946037adb75] calling decompose_query (model=deepseek-ai/DeepSeek-V3)...
+[EVENTBUS] subscribe START: b94603... buf_size=1
+[AGENT-DBG b946037adb75] decompose_query OK after 23.4s, 4 sub-queries
+[EVENTBUS] emit: b94603... research_plan_chunk
+[EVENTBUS] emit: b94603... research_plan_chunk
+[EVENTBUS] emit: b94603... research_plan_chunk
+[EVENTBUS] emit: b94603... research_plan_chunk
+[AGENT-DBG b946037adb75] decomposition_node EXIT
+[EVENTBUS] emit: b94603... retrieval_start
+[EVENTBUS] emit: b94603... retrieval_result
+[EVENTBUS] emit: b94603... critique_start
+[EVENTBUS] emit: b94603... critique_result
+[AGENT-DBG b946037adb75] should_retry: step=1/4 → retrieval
+[EVENTBUS] emit: b94603... retrieval_start
+[EVENTBUS] emit: b94603... retrieval_result
+[EVENTBUS] emit: b94603... critique_start
+[EVENTBUS] emit: b94603... critique_result
+[AGENT-DBG b946037adb75] should_retry: step=2/4 → retrieval
+[EVENTBUS] emit: b94603... retrieval_start
+[EVENTBUS] emit: b94603... retrieval_result
+[EVENTBUS] emit: b94603... critique_start
+[EVENTBUS] emit: b94603... critique_result
+[AGENT-DBG b946037adb75] should_retry: step=2/4 → retrieval
+[EVENTBUS] emit: b94603... retrieval_start
+[EVENTBUS] emit: b94603... retrieval_result
+[EVENTBUS] emit: b94603... critique_start
+[EVENTBUS] emit: b94603... critique_result
+[AGENT-DBG b946037adb75] should_retry: step=2/4 → retrieval
+[EVENTBUS] emit: b94603... retrieval_start
+[EVENTBUS] emit: b94603... retrieval_result
+[EVENTBUS] emit: b94603... critique_start
+[EVENTBUS] emit: b94603... critique_result
+[AGENT-DBG b946037adb75] should_retry: step=3/4 → retrieval
+[EVENTBUS] emit: b94603... retrieval_start
+[EVENTBUS] emit: b94603... retrieval_result
+[EVENTBUS] emit: b94603... critique_start
+[EVENTBUS] emit: b94603... critique_result
+[AGENT-DBG b946037adb75] should_retry: step=3/4 → retrieval
+[EVENTBUS] emit: b94603... retrieval_start
+[EVENTBUS] emit: b94603... retrieval_result
+[EVENTBUS] emit: b94603... critique_start
+[EVENTBUS] emit: b94603... critique_result
+[AGENT-DBG b946037adb75] should_retry: step=4/4 → synthesis
+[EVENTBUS] emit: b94603... synthesis_start
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... synthesis_chunk
+[EVENTBUS] emit: b94603... done
+[EVENTBUS] subscribe DONE: b94603... yielded=546
+[AGENT b946037adb75] ainvoke DONE after 172.8s

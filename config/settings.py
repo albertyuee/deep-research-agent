@@ -9,7 +9,11 @@ from pydantic import Field
 
 
 class LLMSettings(BaseSettings):
-    model_config = {"env_prefix": "LLM_", "env_file": ".env", "extra": "ignore"}
+    model_config = {
+        "env_prefix": "LLM_",
+        "env_file": Path(__file__).parent / ".env",
+        "extra": "ignore"
+    }
 
     provider: Literal["qwen", "openai", "siliconflow"] = "siliconflow"
     model: str = "Qwen/Qwen3-8B"
@@ -20,31 +24,50 @@ class LLMSettings(BaseSettings):
 
 
 class EmbeddingSettings(BaseSettings):
-    model_config = {"env_prefix": "EMBEDDING_", "env_file": ".env", "extra": "ignore"}
+    model_config = {
+        "env_prefix": "EMBEDDING_",
+        "env_file": Path(__file__).parent / ".env",
+        "extra": "ignore"
+    }
 
-    model: str = "BAAI/bge-large-zh-v1.5"
+    mode: Literal["local", "api"] = "local"
+    model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     device: str = "cpu"
-    dimension: int = 1024
+    dimension: int = 384
+    api_base_url: str = "https://api.siliconflow.cn/v1"
+    api_key: str = ""
 
 
 class MilvusSettings(BaseSettings):
-    model_config = {"env_prefix": "MILVUS_", "env_file": ".env", "extra": "ignore"}
+    model_config = {
+        "env_prefix": "MILVUS_",
+        "env_file": Path(__file__).parent / ".env",
+        "extra": "ignore"
+    }
 
     host: str = "localhost"
     port: int = 19530
     collection_name: str = "research_docs"
-    dimension: int = 1024
+    dimension: int = 384
 
 
 class ChromaSettings(BaseSettings):
-    model_config = {"env_prefix": "CHROMA_", "env_file": ".env", "extra": "ignore"}
+    model_config = {
+        "env_prefix": "CHROMA_",
+        "env_file": Path(__file__).parent / ".env",
+        "extra": "ignore"
+    }
 
     persist_dir: str = "./data/chroma_db"
     collection_name: str = "research_docs"
 
 
 class RetrievalSettings(BaseSettings):
-    model_config = {"env_prefix": "RETRIEVAL_", "env_file": ".env", "extra": "ignore"}
+    model_config = {
+        "env_prefix": "RETRIEVAL_",
+        "env_file": Path(__file__).parent / ".env",
+        "extra": "ignore"
+    }
 
     top_k: int = 5
     retry_top_k_multiplier: int = 2
@@ -55,7 +78,10 @@ class RetrievalSettings(BaseSettings):
 
 
 class Settings(BaseSettings):
-    model_config = {"env_file": ".env", "extra": "ignore"}
+    model_config = {
+        "env_file": Path(__file__).parent / ".env",
+        "extra": "ignore"
+    }
 
     llm: LLMSettings = Field(default_factory=LLMSettings)
     embedding: EmbeddingSettings = Field(default_factory=EmbeddingSettings)
