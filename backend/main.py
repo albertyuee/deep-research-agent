@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.routers.research import router as research_router
 from backend.routers.quick_search import router as quick_search_router
+from backend.routers.documents import router as documents_router
 
 
 @asynccontextmanager
@@ -34,6 +35,7 @@ app.add_middleware(
 
 app.include_router(research_router, prefix="/api/v1")
 app.include_router(quick_search_router, prefix="/api/v1")
+app.include_router(documents_router, prefix="/api/v1")
 
 
 @app.get("/health")
