@@ -331,19 +331,22 @@ if st.session_state.get("backend_error"):
     st.error(st.session_state["backend_error"])
     st.info("请确保后端已启动: `uvicorn backend.main:app --reload`")
 
-# ── Dynamic layout ──
-if page_state == "idle":
-    render_empty_state()
+# ── Dynamic layout (always two columns so Streamlit reuses containers) ──
+left, right = st.columns([1, 2])
 
-elif page_state in ("running", "completed", "cancelled"):
-    left, right = st.columns([1, 2])
-
-    with left:
+with left:
+    if page_state == "idle":
+        # Empty left column in idle state for layout stability
+        pass
+    else:
         st.markdown('<p class="section-heading">🤖 Agent 思考过程</p>', unsafe_allow_html=True)
         with st.container():
             render_progress_panel()
 
-    with right:
+with right:
+    if page_state == "idle":
+        render_empty_state()
+    else:
         st.markdown('<p class="section-heading">📊 研究报告</p>', unsafe_allow_html=True)
         if page_state == "running":
             streaming = st.session_state.get("_streaming_report", "")
@@ -361,7 +364,6 @@ elif page_state in ("running", "completed", "cancelled"):
             elif page_state == "cancelled":
                 st.info("无报告内容。")
             else:
-                # Debug: show current state
                 st.info(f"研究完成，正在加载报告... (report len={len(report)})")
 
 # ── Poll worker events when running ──
