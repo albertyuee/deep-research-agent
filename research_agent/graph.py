@@ -49,7 +49,7 @@ async def decomposition_node(state: ResearchState) -> ResearchState:
     query = state["query"]
 
     _dbg(task_id, "decomposition_node ENTER")
-    emit(task_id, "research_plan_start", {"query": query})
+    emit(task_id, "research_plan_start", {"query": query, "progress": 0.05})
 
     _dbg(task_id, "creating LLM client...")
     client = create_llm_client()
@@ -64,12 +64,15 @@ async def decomposition_node(state: ResearchState) -> ResearchState:
 
     plan = ResearchPlan.from_decomposition(query, sub_queries)
 
+    total_sub = len(sub_queries)
     for sq in sub_queries:
+        p = 0.05 + (sq["index"] / total_sub) * 0.05
         emit(task_id, "research_plan_chunk", {
             "index": sq["index"],
             "question": sq["question"],
             "strategy": sq["strategy"],
             "rationale": sq.get("rationale", ""),
+            "progress": p,
         })
 
     state["sub_queries"] = sub_queries
@@ -124,12 +127,15 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
 
     state["retrieval_strategy"] = strategy
 
+    total_steps = state["total_steps"]
+    retr_progress = 0.10 + ((step_idx) / max(total_steps, 1)) * 0.30
     emit(task_id, "retrieval_start", {
         "step": step_idx + 1,
-        "total": state["total_steps"],
+        "total": total_steps,
         "query": query,
         "strategy": strategy,
         "retry_count": retry_count,
+        "progress": retr_progress,
     })
 
     # Execute retrieval
@@ -156,18 +162,20 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
             "score": r.combined_score,
             "vector_score": r.vector_score,
             "bm25_score": r.bm25_score,
-            "metadata": r.metadata,
+            "metadata": {**r.metadata, "strategy": strategy},
         }
         for r in results
     ]
 
     state["retrieval_results"] = result_dicts
 
+    retr_res_progress = 0.10 + ((step_idx + 1) / max(total_steps, 1)) * 0.30
     emit(task_id, "retrieval_result", {
         "step": step_idx + 1,
         "result_count": len(result_dicts),
         "top_score": result_dicts[0]["score"] if result_dicts else 0,
         "top_preview": result_dicts[0]["content"][:200] if result_dicts else "",
+        "progress": retr_res_progress,
     })
 
     return state
@@ -187,7 +195,8 @@ async def critique_node(state: ResearchState) -> ResearchState:
     step_idx = state["current_step"]
     total = state.get("total_steps", 1)
 
-    emit(task_id, "critique_start", {"step": step_idx + 1})
+    crit_progress = 0.40 + ((step_idx + 1) / max(total, 1)) * 0.05
+    emit(task_id, "critique_start", {"step": step_idx + 1, "progress": crit_progress})
 
     client = create_llm_client()
     sub_q = state["sub_queries"][step_idx]
@@ -206,6 +215,7 @@ async def critique_node(state: ResearchState) -> ResearchState:
     }
     state["critique_passed"] = critique.passed
 
+    crit_res_progress = 0.40 + ((step_idx + 1) / max(total, 1)) * 0.15
     emit(task_id, "critique_result", {
         "step": step_idx + 1,
         "composite_score": critique.composite_score,
@@ -213,6 +223,7 @@ async def critique_node(state: ResearchState) -> ResearchState:
         "completeness": critique.completeness_score,
         "passed": critique.passed,
         "retry_suggestion": critique.retry_suggestion,
+        "progress": crit_res_progress,
     })
 
     # ── Post-critique state management (moved from should_retry) ──
@@ -246,7 +257,7 @@ async def synthesis_node(state: ResearchState) -> ResearchState:
     """Aggregate all findings and generate the final report."""
     task_id = state.get("task_id", "")
 
-    emit(task_id, "synthesis_start", {"total_steps": state["total_steps"]})
+    emit(task_id, "synthesis_start", {"total_steps": state["total_steps"], "progress": 0.60})
 
     sub_queries = state["sub_queries"]
     all_results = state["all_retrieval_results"]
@@ -273,9 +284,12 @@ async def synthesis_node(state: ResearchState) -> ResearchState:
     # Generate report with streaming
     client = create_llm_client()
     report_parts = []
+    chunk_idx = 0
     async for chunk in generate_report_streaming(client, state["query"], findings, citation_map):
         report_parts.append(chunk)
-        emit(task_id, "synthesis_chunk", {"text": chunk})
+        chunk_idx += 1
+        synth_progress = 0.60 + min(chunk_idx * 0.005, 0.30)
+        emit(task_id, "synthesis_chunk", {"text": chunk, "progress": synth_progress})
 
     report = "".join(report_parts)
 
@@ -287,7 +301,7 @@ async def synthesis_node(state: ResearchState) -> ResearchState:
     state["final_report"] = report
     state["sources"] = all_sources
 
-    emit(task_id, "done", {"report_length": len(report)})
+    emit(task_id, "done", {"report_length": len(report), "progress": 1.0})
 
     return state
 

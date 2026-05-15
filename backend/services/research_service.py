@@ -13,6 +13,7 @@ class TaskStatus(str, Enum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 @dataclass
@@ -29,6 +30,7 @@ class ResearchTaskManager:
 
     def __init__(self):
         self._tasks: dict[str, ResearchTask] = {}
+        self._running_tasks: dict[str, asyncio.Task] = {}
 
     def create_task(self, task_id: str, query: str) -> ResearchTask:
         task = ResearchTask(task_id=task_id, query=query)
@@ -49,6 +51,22 @@ class ResearchTaskManager:
         task = self._tasks.get(task_id)
         if task:
             task.result = result
+
+    def register_task(self, task_id: str, asyncio_task: asyncio.Task):
+        """Store reference to a running asyncio Task for potential cancellation."""
+        self._running_tasks[task_id] = asyncio_task
+
+    def unregister_task(self, task_id: str):
+        """Remove asyncio Task reference after completion/cancellation."""
+        self._running_tasks.pop(task_id, None)
+
+    def cancel_task(self, task_id: str) -> bool:
+        """Cancel a running research task. Returns True if task was found and cancelled."""
+        asyncio_task = self._running_tasks.get(task_id)
+        if asyncio_task and not asyncio_task.done():
+            asyncio_task.cancel()
+            return True
+        return False
 
 
 # Singleton

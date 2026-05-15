@@ -1,0 +1,137 @@
+<h2>深度研究主页 — 三种状态下的 UI 设计</h2>
+<p class="subtitle">Naive UI 风格，暖色渐变主题。从左到右：空状态 → 研究中 → 完成</p>
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px;">
+
+  <!-- IDLE STATE -->
+  <div class="mockup">
+    <div class="mockup-header">🟢 空状态 — 首次进入</div>
+    <div class="mockup-body" style="padding:0;min-height:380px;">
+      <div style="padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:380px;text-align:center;gap:16px;">
+        <div style="font-size:3rem;">🔬</div>
+        <div style="font-weight:700;font-size:1.1rem;color:#1f2937;">欢迎使用 Deep Research Agent</div>
+        <div style="font-size:12px;color:#9ca3af;line-height:1.6;">基于 Agentic RAG 的自主深度研究助手<br>Agent 自动拆解问题 · 自适应检索 · 评估质量 · 合成报告</div>
+        <div style="display:flex;gap:12px;width:100%;margin-top:8px;">
+          <div style="flex:1;background:#fafafa;border-radius:12px;padding:14px 10px;text-align:center;">
+            <div style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:11px;font-weight:700;">1</div>
+            <div style="font-size:12px;font-weight:600;color:#333;">输入问题</div>
+            <div style="font-size:10px;color:#999;">输入你想研究的任何问题</div>
+          </div>
+          <div style="flex:1;background:#fafafa;border-radius:12px;padding:14px 10px;text-align:center;">
+            <div style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:11px;font-weight:700;">2</div>
+            <div style="font-size:12px;font-weight:600;color:#333;">Agent 研究</div>
+            <div style="font-size:10px;color:#999;">自动拆解→检索→评估→合成</div>
+          </div>
+          <div style="flex:1;background:#fafafa;border-radius:12px;padding:14px 10px;text-align:center;">
+            <div style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:11px;font-weight:700;">3</div>
+            <div style="font-size:12px;font-weight:600;color:#333;">获取报告</div>
+            <div style="font-size:10px;color:#999;">结构化报告 + 可追溯来源</div>
+          </div>
+        </div>
+        <div style="background:linear-gradient(135deg,#f8f7ff,#faf5ff);border-radius:12px;padding:12px;width:100%;margin-top:4px;">
+          <div style="font-size:11px;color:#7c3aed;font-weight:600;margin-bottom:6px;">💡 试试这些问题</div>
+          <div style="font-size:11px;color:#666;text-align:left;padding:6px;background:#fff;border-radius:8px;margin:4px 0;">AI 在医疗影像和药物研发中的应用有什么区别？</div>
+          <div style="font-size:11px;color:#666;text-align:left;padding:6px;background:#fff;border-radius:8px;margin:4px 0;">Transformer 相比 LSTM 有哪些优势？</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RUNNING STATE -->
+  <div class="mockup">
+    <div class="mockup-header">🟡 研究中 — 实时进度</div>
+    <div class="mockup-body" style="padding:0;min-height:380px;">
+      <div style="padding:16px;display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:linear-gradient(135deg,#f3f0ff,#faf5ff);border-radius:10px;">
+          <span style="font-size:11px;font-weight:600;color:#7c3aed;">🔍 正在检索 子问题 2/4</span>
+          <span style="font-size:11px;color:#7c3aed;">⏱ 12s</span>
+        </div>
+        <div style="height:3px;background:#f0f0f0;border-radius:2px;">
+          <div style="height:100%;width:45%;background:linear-gradient(90deg,#7c3aed,#a78bfa);border-radius:2px;"></div>
+        </div>
+        <!-- Stepper -->
+        <div style="display:flex;align-items:center;gap:0;padding:8px 0;">
+          <span style="background:#18a058;color:#fff;border-radius:6px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:10px;">✓</span>
+          <span style="flex:1;height:2px;background:#18a058;margin:0 2px;"></span>
+          <span style="background:#7c3aed;color:#fff;border-radius:6px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:10px;">2</span>
+          <span style="flex:1;height:2px;background:#e5e7eb;margin:0 2px;"></span>
+          <span style="background:#e5e7eb;color:#999;border-radius:6px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:10px;">3</span>
+          <span style="flex:1;height:2px;background:#e5e7eb;margin:0 2px;"></span>
+          <span style="background:#e5e7eb;color:#999;border-radius:6px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:10px;">4</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#999;padding:0 4px;">
+          <span style="color:#18a058;">拆解 ✓</span><span style="color:#7c3aed;">检索中</span><span>评估</span><span>报告</span>
+        </div>
+        <!-- Research Plan -->
+        <div style="background:#fafafa;border-radius:10px;padding:10px;font-size:11px;">
+          <div style="font-weight:600;color:#333;margin-bottom:6px;">📋 研究计划</div>
+          <div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
+            <span style="color:#18a058;font-size:10px;">✓</span>
+            <span>1. AI 在医学影像中的应用现状</span>
+            <span style="background:#e5e7eb;padding:1px 5px;border-radius:4px;font-size:9px;">semantic</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
+            <span style="background:#7c3aed;color:#fff;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;animation:pulse 1s infinite;">2</span>
+            <span style="font-weight:600;">2. AI 在药物研发中的应用</span>
+            <span style="background:#e5e7eb;padding:1px 5px;border-radius:4px;font-size:9px;">hybrid</span>
+          </div>
+          <div style="padding:3px 0;color:#ccc;">3. 两者的方法学差异...</div>
+          <div style="padding:3px 0;color:#ccc;">4. 两者的应用场景对比...</div>
+        </div>
+        <!-- Streaming Report Preview -->
+        <div style="background:linear-gradient(135deg,#fafafa,#fff);border-radius:10px;padding:12px;font-size:11px;color:#666;border:1px solid #f0f0f0;">
+          <div style="font-weight:600;color:#333;margin-bottom:6px;">📊 实时报告</div>
+          <p style="margin:0;line-height:1.6;">## 摘要<br>AI 在医疗领域的应用主要集中在两大方向...<span style="display:inline-block;width:6px;height:12px;background:#7c3aed;animation:blink 1s infinite;vertical-align:middle;margin-left:1px;"></span></p>
+        </div>
+        <button class="mock-button" style="background:linear-gradient(135deg,#fee2e2,#fecaca);color:#dc2626;border:none;width:100%;">🛑 停止研究</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPLETED STATE -->
+  <div class="mockup">
+    <div class="mockup-header">🔵 已完成 — 报告 + 来源</div>
+    <div class="mockup-body" style="padding:0;min-height:380px;">
+      <div style="padding:16px;display:flex;flex-direction:column;gap:10px;">
+        <!-- Stepper Done -->
+        <div style="display:flex;align-items:center;gap:0;padding:8px 0;">
+          <span style="background:#18a058;color:#fff;border-radius:6px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:10px;">✓</span>
+          <span style="flex:1;height:2px;background:#18a058;margin:0 2px;"></span>
+          <span style="background:#18a058;color:#fff;border-radius:6px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:10px;">✓</span>
+          <span style="flex:1;height:2px;background:#18a058;margin:0 2px;"></span>
+          <span style="background:#18a058;color:#fff;border-radius:6px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:10px;">✓</span>
+          <span style="flex:1;height:2px;background:#18a058;margin:0 2px;"></span>
+          <span style="background:#18a058;color:#fff;border-radius:6px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:10px;">✓</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#18a058;padding:0 4px;">
+          <span>拆解 ✓</span><span>检索 ✓</span><span>评估 ✓</span><span>报告 ✓</span>
+        </div>
+        <!-- Report -->
+        <div style="background:#fff;border-radius:10px;padding:12px;font-size:11px;color:#333;border:1px solid #f0f0f0;max-height:180px;overflow:hidden;">
+          <div style="font-weight:600;color:#333;margin-bottom:6px;">📊 研究报告</div>
+          <h4 style="margin:0 0 4px 0;font-size:12px;">AI 在医疗影像与药物研发中的应用差异</h4>
+          <p style="margin:0;line-height:1.5;font-size:10px;color:#666;">## 1. 核心差异<br>医疗影像侧重图像识别与分割，依赖CNN架构；药物研发侧重分子生成与性质预测，使用GNN和Transformer...<br><br>## 2. 数据特性<br>影像数据：结构化像素，标注成本高...</p>
+        </div>
+        <!-- Sources -->
+        <div style="background:#fafafa;border-radius:10px;padding:10px;font-size:10px;">
+          <div style="font-weight:600;color:#333;margin-bottom:6px;">📎 引用来源 (3)</div>
+          <div style="background:#fff;border-radius:8px;padding:8px;margin:4px 0;border:1px solid #eee;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-weight:600;">Deep Learning in Medical Imaging</span>
+              <span style="background:#d1fae5;color:#065f46;padding:1px 6px;border-radius:6px;">0.89</span>
+            </div>
+            <span style="background:#f0f0f0;padding:1px 5px;border-radius:4px;font-size:9px;">semantic</span>
+          </div>
+          <div style="background:#fff;border-radius:8px;padding:8px;margin:4px 0;border:1px solid #eee;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-weight:600;">AI Drug Discovery Review 2024</span>
+              <span style="background:#d1fae5;color:#065f46;padding:1px 6px;border-radius:6px;">0.85</span>
+            </div>
+            <span style="background:#f0f0f0;padding:1px 5px;border-radius:4px;font-size:9px;">hybrid</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

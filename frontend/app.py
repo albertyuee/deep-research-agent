@@ -68,6 +68,7 @@ _defaults = {
     "_chip_query": "",
     "cancel_requested": False,
     "_report_placeholder": None,
+    "_research_counter": 0,
 }
 # Add pending submission flag to defaults
 _defaults["_pending_submission"] = False
@@ -118,6 +119,8 @@ def _drain_event_queue() -> str | None:
             elif event_type == "synthesis_chunk":
                 text = data.get("text", "")
                 report_text += text
+                # Immediately update streaming report for real-time display
+                st.session_state["_streaming_report"] = report_text
 
             elif event_type == "backend_error":
                 error_msg = data.get("message", str(data))
@@ -225,10 +228,6 @@ with st.form("search_form", clear_on_submit=False):
             use_container_width=True,
             disabled=st.session_state["is_running"],
         )
-    # Immediately clear previous research when form is submitted
-    if submitted:
-        st.session_state["report"] = ""
-        st.session_state["_streaming_report"] = ""
 
 # ── Example query chips (outside form) ──
 cols_chips = st.columns(len(EXAMPLE_QUERIES))
@@ -245,16 +244,22 @@ for i, (col, ex) in enumerate(zip(cols_chips, EXAMPLE_QUERIES)):
             st.session_state["_chip_query"] = ex
             st.rerun()
 
-# ── Handle form submission ──
+# ── Clear previous research on form submission ──
+# This must happen BEFORE page_state is computed to avoid showing old content
 if submitted and query.strip():
-    # Set pending submission flag FIRST to force running state
-    st.session_state["_pending_submission"] = True
-    # Clear all previous research state before starting new one
-    st.session_state["is_running"] = True
+    # Explicitly clear old report DOM by calling .empty() on the previous placeholder.
+    # This is more reliable than relying on Streamlit's React diff to clean up
+    # raw HTML injected by st.markdown(unsafe_allow_html=True).
+    old_placeholder = st.session_state.get("_report_placeholder")
+    if old_placeholder is not None:
+        old_placeholder.empty()
+    st.session_state["_report_placeholder"] = None
+
+    st.session_state["_last_submitted_task_id"] = st.session_state.get("_task_id")
     st.session_state["report"] = ""
+    st.session_state["_streaming_report"] = ""
     st.session_state["sources"] = []
     st.session_state["_cancelled"] = False
-    st.session_state["_streaming_report"] = ""
     st.session_state["progress"] = AgentProgressDisplay()
     st.session_state["agent_steps"] = []
     st.session_state["research_plan"] = []
@@ -276,6 +281,9 @@ if submitted and query.strip():
     st.session_state["cancel_event"] = ce
     st.session_state["worker_thread"] = thread
     st.session_state["_task_id"] = None
+    st.session_state["is_running"] = True
+    st.session_state["_pending_submission"] = True
+    st.session_state["_research_counter"] = st.session_state.get("_research_counter", 0) + 1
     thread.start()
     st.session_state["_pending_submission"] = False
     st.rerun()
@@ -348,27 +356,39 @@ with right:
         render_empty_state()
     else:
         st.markdown('<p class="section-heading">📊 研究报告</p>', unsafe_allow_html=True)
-        # Use st.empty() as a stable container so Streamlit properly clears
-        # old content when the state (and thus the element type) changes.
-        # Without this, st.markdown(report) → st.info(...) leaves orphaned DOM nodes.
-        report_area = st.empty()
+        # Reuse or create a persistent st.empty() placeholder stored in session state.
+        # On form submission, the old placeholder is explicitly cleared via .empty()
+        # before a new one is created — this guarantees old report DOM nodes are removed
+        # rather than relying on Streamlit's React diff (which may not clean up raw HTML
+        # injected by st.markdown).
+        report_placeholder = st.session_state.get("_report_placeholder")
+        if report_placeholder is None:
+            report_placeholder = st.empty()
+            st.session_state["_report_placeholder"] = report_placeholder
         if page_state == "running":
             streaming = st.session_state.get("_streaming_report", "")
             if streaming:
-                report_area.markdown(streaming)
+                report_placeholder.markdown(streaming)
             else:
-                report_area.info("Agent 正在准备报告...")
-        else:
+                report_placeholder.markdown("*Agent 正在准备报告...*")
+        elif page_state == "completed":
             report = st.session_state.get("report", "")
             if report:
-                report_area.markdown(report)
-                sources = st.session_state.get("sources", [])
-                if sources:
-                    render_sources(sources)
-            elif page_state == "cancelled":
-                report_area.info("无报告内容。")
+                report_placeholder.markdown(report)
             else:
-                report_area.info(f"研究完成，正在加载报告... (report len={len(report)})")
+                report_placeholder.markdown("*无报告内容。*")
+        elif page_state == "cancelled":
+            report = st.session_state.get("report", "")
+            if report:
+                report_placeholder.markdown(report)
+            else:
+                report_placeholder.markdown("*无报告内容。*")
+
+        # Render sources separately (outside placeholder — they only show when completed)
+        if page_state == "completed":
+            sources = st.session_state.get("sources", [])
+            if sources:
+                render_sources(sources)
 
 # ── Poll worker events when running ──
 if st.session_state["is_running"]:

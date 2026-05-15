@@ -88,9 +88,33 @@ async def get_research_status(task_id: str):
     )
 
 
+@router.post("/{task_id}/cancel", response_model=ResearchResponse)
+async def cancel_research(task_id: str):
+    """Cancel a running research task."""
+    task = task_manager.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if task.status != TaskStatus.RUNNING:
+        raise HTTPException(status_code=409, detail=f"Task is not running (current status: {task.status.value})")
+
+    cancelled = task_manager.cancel_task(task_id)
+    if cancelled:
+        return ResearchResponse(
+            success=True,
+            data={"task_id": task_id, "message": "Task cancellation requested"},
+        )
+    else:
+        raise HTTPException(status_code=500, detail="Failed to cancel task")
+
+
 async def _run_agent(task_id: str, query: str):
     """Execute the agent graph for a research task."""
     import sys, time
+    current_task = asyncio.current_task()
+    if current_task:
+        task_manager.register_task(task_id, current_task)
+
     try:
         print(f"[AGENT {task_id}] _run_agent START, query={query[:60]}", flush=True, file=sys.stderr)
         initial_state = {
@@ -111,8 +135,13 @@ async def _run_agent(task_id: str, query: str):
         })
         task_manager.update_status(task_id, TaskStatus.COMPLETED)
 
+    except asyncio.CancelledError:
+        print(f"[AGENT {task_id}] Cancelled by user", flush=True, file=sys.stderr)
+        event_bus.emit(task_id, "cancelled", {"message": "研究已被用户取消"})
+        task_manager.update_status(task_id, TaskStatus.CANCELLED)
     except Exception as e:
         task_manager.update_status(task_id, TaskStatus.FAILED, error=str(e))
         event_bus.emit(task_id, "done", {"error": str(e)})
     finally:
+        task_manager.unregister_task(task_id)
         event_bus.cleanup(task_id)
