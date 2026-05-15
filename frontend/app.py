@@ -124,13 +124,12 @@ def _drain_event_queue() -> str | None:
 
             elif event_type == "done":
                 st.session_state["is_running"] = False
-                streaming = st.session_state.get("_streaming_report", "")
-                if streaming:
-                    st.session_state["report"] = streaming
+                if report_text:
+                    st.session_state["report"] = report_text
                 st.session_state["_streaming_report"] = ""
                 task_id = st.session_state.get("_task_id")
                 if task_id:
-                    _fetch_final_result(task_id, streaming)
+                    _fetch_final_result(task_id, report_text)
 
             # Always update progress (handles heartbeat filtering internally)
             st.session_state["progress"].handle_event(event_type, data)
@@ -154,6 +153,9 @@ def _finalise_on_done():
         if streaming and not st.session_state["report"]:
             st.session_state["report"] = streaming
         st.session_state["_streaming_report"] = ""
+        task_id = st.session_state.get("_task_id")
+        if task_id and not st.session_state.get("sources"):
+            _fetch_final_result(task_id, streaming or "")
         st.session_state["worker_thread"] = None
 
 
