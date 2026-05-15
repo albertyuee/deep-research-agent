@@ -119,10 +119,6 @@ def _drain_event_queue() -> str | None:
                 text = data.get("text", "")
                 report_text += text
 
-            elif event_type == "cancelled":
-                st.session_state["_cancelled"] = True
-                st.session_state["is_running"] = False
-
             elif event_type == "backend_error":
                 error_msg = data.get("message", str(data))
                 st.session_state["backend_error"] = error_msg
@@ -136,13 +132,20 @@ def _drain_event_queue() -> str | None:
                 if task_id:
                     _fetch_final_result(task_id, report_text)
 
+            elif event_type == "cancelled":
+                st.session_state["_cancelled"] = True
+                st.session_state["is_running"] = False
+
             # Always update progress (handles heartbeat filtering internally)
             st.session_state["progress"].handle_event(event_type, data)
 
     except queue.Empty:
         pass
 
-    st.session_state["_streaming_report"] = report_text
+    # Only update streaming state if still running — don't overwrite
+    # the cleared state after done/cancelled events
+    if not st.session_state.get("_cancelled") and st.session_state["report"] == "":
+        st.session_state["_streaming_report"] = report_text
     # Debug: log events processed
     if events_processed > 0:
         print(f"[FRONTEND] _drain_event_queue: processed {events_processed} events, streaming_report len={len(report_text)}", flush=True)
@@ -222,9 +225,10 @@ with st.form("search_form", clear_on_submit=False):
             use_container_width=True,
             disabled=st.session_state["is_running"],
         )
-    # Immediately clear report when form is submitted
+    # Immediately clear previous research when form is submitted
     if submitted:
         st.session_state["report"] = ""
+        st.session_state["_streaming_report"] = ""
 
 # ── Example query chips (outside form) ──
 cols_chips = st.columns(len(EXAMPLE_QUERIES))
