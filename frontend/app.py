@@ -348,23 +348,27 @@ with right:
         render_empty_state()
     else:
         st.markdown('<p class="section-heading">📊 研究报告</p>', unsafe_allow_html=True)
+        # Use st.empty() as a stable container so Streamlit properly clears
+        # old content when the state (and thus the element type) changes.
+        # Without this, st.markdown(report) → st.info(...) leaves orphaned DOM nodes.
+        report_area = st.empty()
         if page_state == "running":
             streaming = st.session_state.get("_streaming_report", "")
             if streaming:
-                st.markdown(streaming)
+                report_area.markdown(streaming)
             else:
-                st.info("Agent 正在准备报告...")
+                report_area.info("Agent 正在准备报告...")
         else:
             report = st.session_state.get("report", "")
             if report:
-                st.markdown(report)
+                report_area.markdown(report)
                 sources = st.session_state.get("sources", [])
                 if sources:
                     render_sources(sources)
             elif page_state == "cancelled":
-                st.info("无报告内容。")
+                report_area.info("无报告内容。")
             else:
-                st.info(f"研究完成，正在加载报告... (report len={len(report)})")
+                report_area.info(f"研究完成，正在加载报告... (report len={len(report)})")
 
 # ── Poll worker events when running ──
 if st.session_state["is_running"]:
