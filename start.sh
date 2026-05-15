@@ -102,7 +102,7 @@ echo "=========================================="
 echo ""
 echo "后端 API: http://localhost:8000"
 echo "API 文档: http://localhost:8000/docs"
-echo "前端界面: http://localhost:8502"
+echo "前端界面: http://localhost:5173"
 echo ""
 echo "按 Ctrl+C 停止所有服务"
 echo "=========================================="
@@ -130,25 +130,35 @@ if ! curl -s http://localhost:8000/health > /dev/null 2>&1; then
 fi
 echo "✓ 后端启动成功"
 
-# 启动前端
-echo "🚀 启动前端 (Streamlit)..."
-streamlit run frontend/app.py --server.port 8502 --server.address 0.0.0.0 --server.headless true > "$LOG_DIR/frontend.log" 2>&1 &
+# 启动前端 (Vue 3 / Vite)
+echo "🚀 启动前端 (Vue 3 + Vite)..."
+cd "$SCRIPT_DIR/frontend-vue"
+
+# 首次运行检查 node_modules
+if [ ! -d "node_modules" ]; then
+    echo "   首次运行，正在安装前端依赖..."
+    npm install --silent
+    echo "   ✓ 依赖安装完成"
+fi
+
+npm run dev -- --host 0.0.0.0 > "$LOG_DIR/frontend.log" 2>&1 &
 FRONTEND_PID=$!
+cd "$SCRIPT_DIR"
 echo "   前端 PID: $FRONTEND_PID"
 
 # 等待前端启动并打开浏览器
 sleep 3
-if lsof -ti :8502 > /dev/null 2>&1; then
+if lsof -ti :5173 > /dev/null 2>&1; then
     echo "✓ 前端启动成功"
     echo ""
     echo "✅ 所有服务已启动！"
     echo ""
-    echo "🌐 打开浏览器访问: http://localhost:8502"
-    
+    echo "🌐 打开浏览器访问: http://localhost:5173"
+
     # 尝试打开浏览器
     if command -v open &> /dev/null; then
         sleep 1
-        open http://localhost:8502 2>/dev/null || true
+        open http://localhost:5173 2>/dev/null || true
     fi
 else
     echo "❌ 前端启动失败，请检查日志: $LOG_DIR/frontend.log"
