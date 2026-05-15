@@ -28,9 +28,13 @@ st.set_page_config(
 )
 
 # Inject custom CSS
-_css_path = os.path.join(os.path.dirname(__file__), "static", "style.css")
-with open(_css_path, "r", encoding="utf-8") as _f:
-    st.markdown(f"<style>{_f.read()}</style>", unsafe_allow_html=True)
+@st.cache_resource
+def _load_css() -> str:
+    css_path = os.path.join(os.path.dirname(__file__), "static", "style.css")
+    with open(css_path, "r", encoding="utf-8") as f:
+        return f.read()
+
+st.markdown(f"<style>{_load_css()}</style>", unsafe_allow_html=True)
 
 st.markdown(
     '<div class="app-header">'
@@ -60,6 +64,7 @@ _defaults = {
     "research_plan": [],
     "critique_results": [],
     "progress_value": 0.0,
+    "current_detail": "",
     "_chip_query": "",
     "cancel_requested": False,
     "_report_placeholder": None,
