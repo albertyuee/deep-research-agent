@@ -61,6 +61,14 @@ class ChromaSettings(BaseSettings):
     persist_dir: str = "./data/chroma_db"
     collection_name: str = "research_docs"
 
+    @property
+    def resolved_persist_dir(self) -> Path:
+        p = Path(self.persist_dir)
+        if not p.is_absolute():
+            project_root = Path(__file__).resolve().parent.parent
+            p = project_root / p
+        return p.resolve()
+
 
 class RetrievalSettings(BaseSettings):
     model_config = {

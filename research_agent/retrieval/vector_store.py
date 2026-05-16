@@ -22,7 +22,7 @@ class VectorStore:
 
     def __init__(self):
         cfg = settings.chroma
-        persist_dir = str(Path(cfg.persist_dir).resolve())
+        persist_dir = str(cfg.resolved_persist_dir)
         self.client = chromadb.PersistentClient(
             path=persist_dir,
             settings=ChromaSettings(anonymized_telemetry=False),
