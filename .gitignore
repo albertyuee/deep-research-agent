@@ -15,9 +15,12 @@ build/
 *.egg-info/
 *.egg
 
-# Environment variables (keep .env.example tracked)
+# Environment variables (NEVER commit — contains API keys)
 .env
+.env.*
+*.env
 !.env.example
+config/.env
 
 # Logs
 logs/
@@ -26,8 +29,16 @@ logs/
 # Vector database (ChromaDB)
 data/chroma_db/
 
-# pytest
+# User uploaded files
+data/uploads/
+
+# Superpowers brainstorming artifacts
+.superpowers/
+
+# pytest / coverage
 .pytest_cache/
+.coverage
+htmlcov/
 
 # IDE
 .vscode/
@@ -40,8 +51,11 @@ data/chroma_db/
 .DS_Store
 Thumbs.db
 
-# Node modules
+# Node / Frontend
 node_modules/
+frontend-vue/dist/
+*.tsbuildinfo
 
 # Claude Code local settings
 .claude/settings.local.json
+.claude/projects/
