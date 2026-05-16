@@ -1,11 +1,11 @@
 <template>
   <div>
-    <div class="text-center mb-6">
-      <h1 class="text-2xl font-bold bg-gradient-to-r from-brand-700 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-        🔬 Deep Research Agent
+    <div class="mb-5">
+      <h1 class="text-xl font-bold text-gray-800">
+        🔬 深度研究
       </h1>
-      <p class="text-sm text-gray-400 mt-1">
-        Agentic RAG — 自主拆解问题 · 自适应检索 · 质量评估 · 报告合成
+      <p class="text-sm text-gray-400">
+        自主拆解问题 · 自适应检索 · 质量评估 · 报告合成
       </p>
     </div>
 
@@ -34,20 +34,21 @@
       </div>
     </div>
 
-    <div v-else class="flex flex-col items-center justify-center py-16 text-center">
-      <div class="text-6xl mb-4">🔬</div>
-      <h2 class="text-xl font-bold text-gray-700 mb-2">欢迎使用 Deep Research Agent</h2>
-      <p class="text-gray-400 max-w-md">
-        基于 Agentic RAG 的自主深度研究助手<br>
-        Agent 自动拆解问题 · 自适应检索 · 评估质量 · 合成报告
+    <div v-else class="welcome-empty">
+      <div class="welcome-icon-wrap">
+        <span class="welcome-icon-large">🔬</span>
+      </div>
+      <h2 class="welcome-title-text">开始你的深度研究</h2>
+      <p class="welcome-desc">
+        输入一个复杂问题，Agent 会自动拆解、检索、评估并合成一份结构化的研究报告
       </p>
-      <div class="flex gap-4 mt-8">
-        <div v-for="(step, i) in steps" :key="i" class="text-center px-4">
-          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-brand-700 to-purple-400 text-white flex items-center justify-center mx-auto mb-2 font-bold text-sm">
-            {{ i + 1 }}
+      <div class="welcome-steps">
+        <div v-for="(step, i) in steps" :key="i" class="welcome-step-item">
+          <div class="welcome-step-num">{{ i + 1 }}</div>
+          <div class="welcome-step-content">
+            <div class="welcome-step-title">{{ step.title }}</div>
+            <div class="welcome-step-desc">{{ step.desc }}</div>
           </div>
-          <div class="text-sm font-semibold text-gray-700">{{ step.title }}</div>
-          <div class="text-xs text-gray-400">{{ step.desc }}</div>
         </div>
       </div>
     </div>
@@ -94,9 +95,9 @@ const showContent = computed(() => {
 })
 
 const steps = [
-  { title: '输入问题', desc: '输入你想研究的任何问题' },
-  { title: 'Agent 研究', desc: '自动拆解→检索→评估→合成' },
-  { title: '获取报告', desc: '结构化报告 + 可追溯来源' },
+  { title: '输入问题', desc: '输入你想深入研究的任何问题' },
+  { title: 'Agent 自主研究', desc: '自动拆解 → 检索 → 评估 → 合成' },
+  { title: '获取报告', desc: '结构化研究报告 + 可追溯引用来源' },
 ]
 
 async function onSubmit(query: string) {
@@ -118,5 +119,99 @@ onBeforeUnmount(() => {
   background: #fff;
   border-radius: 14px;
   border: 1px solid #f3f4f6;
+}
+
+/* Welcome / Empty State */
+.welcome-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  min-height: 50vh;
+}
+
+.welcome-icon-wrap {
+  margin-bottom: 20px;
+}
+
+.welcome-icon-large {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  font-size: 2.5rem;
+  background: linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%);
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.12);
+}
+
+.welcome-title-text {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+}
+
+.welcome-desc {
+  font-size: 0.9rem;
+  color: #9ca3af;
+  max-width: 420px;
+  line-height: 1.6;
+  margin: 0 0 32px 0;
+}
+
+.welcome-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.welcome-step-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #fafbfc;
+  border: 1px solid #f3f4f6;
+  border-radius: 14px;
+  padding: 14px 18px;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.welcome-step-item:hover {
+  border-color: #e9d5ff;
+  background: #fafbff;
+  box-shadow: 0 2px 12px rgba(124, 58, 237, 0.06);
+}
+
+.welcome-step-num {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #7c3aed, #a78bfa);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.welcome-step-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.welcome-step-desc {
+  font-size: 0.78rem;
+  color: #9ca3af;
+  margin-top: 2px;
 }
 </style>

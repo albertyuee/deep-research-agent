@@ -1,51 +1,52 @@
 <template>
   <div class="mb-5">
     <n-card :bordered="false" class="search-card">
-      <n-input
-        v-model:value="inputText"
-        type="textarea"
-        placeholder="输入你的研究问题，例如：人工智能在医疗影像和药物研发中的应用有什么区别？"
-        :autosize="{ minRows: 2, maxRows: 4 }"
-        :disabled="isRunning"
-        size="large"
-        round
-        @keydown.enter.ctrl="emitSubmit"
-      />
-      <div class="flex items-center gap-3 mt-3">
-        <n-button
-          type="primary"
-          size="large"
-          :disabled="!inputText.trim() || isRunning"
-          :loading="isRunning"
-          @click="emitSubmit"
-        >
-          <template #icon><n-icon><rocket-outline /></n-icon></template>
-          {{ isRunning ? '研究中...' : '开始研究' }}
-        </n-button>
-        <n-button
-          v-if="isRunning"
-          type="error"
-          size="large"
-          secondary
-          @click="$emit('stop')"
-        >
-          <template #icon><n-icon><stop-circle-outline /></n-icon></template>
-          停止
-        </n-button>
+      <div class="flex items-start gap-3">
+        <div class="flex-1">
+          <n-input
+            v-model:value="inputText"
+            type="textarea"
+            placeholder="输入你的研究问题，例如：人工智能在医疗影像和药物研发中的应用有什么区别？"
+            :autosize="{ minRows: 2, maxRows: 4 }"
+            :disabled="isRunning"
+            size="large"
+            round
+            @keydown.enter.ctrl="emitSubmit"
+          />
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <n-button
+            type="primary"
+            size="large"
+            :disabled="!inputText.trim() || isRunning"
+            :loading="isRunning"
+            @click="emitSubmit"
+          >
+            <template #icon><n-icon><rocket-outline /></n-icon></template>
+            {{ isRunning ? '研究中...' : '开始研究' }}
+          </n-button>
+          <n-button
+            v-if="isRunning"
+            type="error"
+            size="large"
+            secondary
+            @click="$emit('stop')"
+          >
+            <template #icon><n-icon><stop-circle-outline /></n-icon></template>
+            停止
+          </n-button>
+        </div>
       </div>
 
       <div v-if="!isRunning" class="flex flex-wrap gap-2 mt-3">
-        <n-tag
+        <span
           v-for="(ex, i) in examples"
           :key="i"
-          :bordered="true"
-          type="info"
-          size="small"
-          class="cursor-pointer hover:border-brand-700 hover:text-brand-700 transition-colors"
+          class="example-chip"
           @click="selectExample(ex)"
         >
-          {{ ex.slice(0, 35) }}{{ ex.length > 35 ? '…' : '' }}
-        </n-tag>
+          💡 {{ ex.slice(0, 30) }}{{ ex.length > 30 ? '…' : '' }}
+        </span>
       </div>
     </n-card>
   </div>
@@ -92,5 +93,28 @@ function selectExample(text: string) {
   background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
   border-radius: 16px;
   box-shadow: 0 2px 16px rgba(124, 58, 237, 0.06);
+}
+
+.example-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+  border: 1px solid #e9d5ff;
+  color: #7c3aed;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.example-chip:hover {
+  background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+  border-color: #c4b5fd;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);
+  color: #6d28d9;
 }
 </style>

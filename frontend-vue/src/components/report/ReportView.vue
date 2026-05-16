@@ -1,7 +1,7 @@
 <template>
   <div class="report-container">
     <div v-if="!hasContent && !isStreaming" class="flex flex-col items-center justify-center py-20 text-gray-400">
-      <span class="text-4xl mb-3">\u{1F4CA}</span>
+      <span class="text-4xl mb-3">📊</span>
       <p class="text-sm">{{ isRunning ? 'Agent 正在准备报告...' : '输入研究问题开始深度研究' }}</p>
       <div v-if="isRunning" class="typing-cursor mt-1" />
     </div>
