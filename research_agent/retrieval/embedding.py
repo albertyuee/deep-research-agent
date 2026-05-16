@@ -52,10 +52,12 @@ class EmbeddingService:
         import httpx
 
         embeddings = []
-        batch_size = 16
+        batch_size = 8
 
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i + batch_size]
+            max_chars = max(len(t) for t in batch)
+            print(f"[EMBED] batch {i//batch_size + 1}: {len(batch)} texts, max_chars={max_chars}", flush=True)
 
             response = httpx.post(
                 f"{self.api_base_url}/embeddings",
@@ -69,7 +71,10 @@ class EmbeddingService:
                 },
                 timeout=60.0,
             )
-            response.raise_for_status()
+            if not response.is_success:
+                detail = response.text[:500]
+                print(f"[EMBED] ERROR {response.status_code}: {detail}", flush=True)
+                response.raise_for_status()
             result = response.json()
             embeddings.extend([item["embedding"] for item in result["data"]])
 

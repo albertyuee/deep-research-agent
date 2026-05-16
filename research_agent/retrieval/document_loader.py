@@ -20,7 +20,7 @@ class DocumentLoader:
     Supports: PDF (.pdf), Word (.docx), Markdown (.md), plain text (.txt).
     """
 
-    def __init__(self, min_chunk_length: int = 50, max_chunk_chars: int = 800):
+    def __init__(self, min_chunk_length: int = 50, max_chunk_chars: int = 300):
         self.min_chunk_length = min_chunk_length
         self.max_chunk_chars = max_chunk_chars
 
