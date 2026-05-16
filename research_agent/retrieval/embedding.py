@@ -52,7 +52,7 @@ class EmbeddingService:
         import httpx
 
         embeddings = []
-        batch_size = 32
+        batch_size = 16
 
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i + batch_size]
