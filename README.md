@@ -3,9 +3,9 @@
 > **Agentic RAG 驱动的深度研究 Agent** — Agent 自主拆解问题、选择检索策略、评估质量、自我纠正，最终生成带引用溯源的结构化研究报告。
 
 [Python](https://python.org)  
-[LangGraph](https://langchain.com/langgraph)  
-[FastAPI](https://fastapi.tiangolo.com)  
-[Streamlit](https://streamlit.io)  
+[LangGraph](https://langchain.com/langgraph)
+[FastAPI](https://fastapi.tiangolo.com)
+[Vue 3](https://vuejs.org) + [Vite](https://vitejs.dev) + [Naive UI](https://naiveui.com)
 [License](LICENSE)
 
 ---
@@ -78,7 +78,7 @@
 │                        │ · 引用标注    │               │
 │                        └──────────────┘               │
 │                                 │                      │
-│                  SSE Events ────▶ Streamlit Frontend    │
+│                  SSE Events ────▶ Vue 3 Frontend        │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -115,7 +115,7 @@ Decomposition → Retrieval → Critique → should_retry?
 | **关键词检索**     | BM25（rank-bm25）                  | 互补语义检索                |
 | **混合检索**      | RRF 融合                           | 向量 + BM25 结果重排序       |
 | **后端**        | FastAPI + SSE                    | 异步 + 流式推送             |
-| **前端**        | Streamlit                        | Agent 思考过程实时可视化       |
+| **前端**        | Vue 3 + Vite + Naive UI         | Agent 思考过程实时可视化       |
 | **配置**        | pydantic-settings + .env         | 类型安全的环境变量管理           |
 
 
@@ -182,34 +182,23 @@ EMBEDDING_API_KEY=sk-your-siliconflow-api-key-here  # 与LLM共用同一个key
 
 ### 4. 索引文档
 
-#### 一键索引（推荐）
+示例文档（`data/sample_docs/` 下的 Markdown 文件）会在首次启动时自动索引。也可以通过 Web UI 上传自己的文档：
 
-支持 PDF（.pdf）、Word（.docx）、Markdown（.md）、纯文本（.txt），一条命令自动完成解析、分块、索引：
+**方式一：Web UI（推荐）**
 
-```bash
-# 索引示例文档
-python scripts/index_documents.py data/sample_docs
+启动后访问 `http://localhost:5173/documents`，上传 PDF / Word / Markdown / TXT 文件，自动分块、嵌入、索引，立即可被检索。
 
-# 索引你自己的文档目录
-python scripts/index_documents.py /path/to/your/documents
-
-# 可选参数
-python scripts/index_documents.py /path/to/docs --min-chunk-length 100 --exclude "*.pdf"
-```
-
-#### 手动索引（高级）
+**方式二：手动索引**
 
 ```bash
-python -c "
+python3 -c "
 from research_agent.retrieval.document_loader import DocumentLoader
 from research_agent.retrieval.vector_store import VectorStore
 from research_agent.retrieval.bm25 import BM25Retriever
 
-# 加载文档（支持 .pdf / .docx / .md / .txt）
-loader = DocumentLoader(min_chunk_length=50)
+loader = DocumentLoader()
 chunks = loader.load_directory('data/sample_docs')
 
-# 索引到向量库
 vs = VectorStore()
 vs.add_documents(
     [c.chunk_id for c in chunks],
@@ -218,7 +207,6 @@ vs.add_documents(
 )
 print(f'向量库索引完成: {vs.count} 个 chunk')
 
-# 索引到 BM25
 bm25 = BM25Retriever()
 bm25.index_documents(
     [c.chunk_id for c in chunks],
@@ -238,38 +226,35 @@ print(f'BM25 索引完成: {len(chunks)} 条')
 这会自动：
 
 1. 检查 Python 版本和依赖
-2. 索引示例文档
-3. 启动后端（端口 8000）
-4. 启动前端（端口 8502）
-5. 打开浏览器访问
+2. 检查 ChromaDB 索引状态（已有数据则跳过）
+3. 安装前端依赖（首次运行）
+4. 启动后端（端口 8000）
+5. 启动前端（端口 5173）
+6. 打开浏览器访问
 
 也可以手动分步启动：
 
 ```bash
 # 终端1: 启动后端
-uvicorn backend.main:app --reload
+uvicorn backend.main:app --reload --port 8000
 
 # 终端2: 启动前端
-streamlit run frontend/app.py --server.port 8502
+cd frontend-vue && npm run dev
 ```
 
 访问 [http://localhost:8000/health](http://localhost:8000/health) 确认后端正常运行。
 API 文档：[http://localhost:8000/docs](http://localhost:8000/docs)
-前端界面：[http://localhost:8502](http://localhost:8502)
+前端界面：[http://localhost:5173](http://localhost:5173)
 
-### 6. 开始研究
+### 6. 开始使用
 
-在输入框中输入你的研究问题，例如：
+**深度研究**：输入复杂问题，Agent 自动拆解→检索→评估→合成报告。适合需要深入分析的话题。
 
-> **"人工智能在医疗影像和药物研发中的应用有什么区别？"**
+**快速检索**：即时问答，AI 摘要 + 来源引用，秒级响应。适合快速查找和简单问题。
 
-Agent 会自动完成：拆解子问题 → 检索 → 评估质量 → 生成对比分析报告。
+**资料管理**：上传 PDF/Word/Markdown/TXT 文档，自动索引入知识库。
 
-更多示例问题：
-
-- "RAG 技术从 2023 到 2026 年经历了哪些演进阶段？"
-- "联邦学习在医疗 AI 中有哪些实际部署案例？"
-- "AlphaFold 是如何改变药物研发流程的？"
+**系统设置**：配置 LLM 提供商、嵌入模型、检索参数，支持热重载。
 
 ---
 
@@ -305,22 +290,35 @@ deep-research-agent/
 │   └── graph.py                  # LangGraph Agent 编排（4 节点 + 条件路由）
 ├── backend/                      # FastAPI 后端
 │   ├── main.py                   # 应用入口 + CORS + 生命周期
-│   ├── routers/research.py       # POST /research, GET /research/{id}/stream
+│   ├── routers/
+│   │   ├── research.py           # 深度研究 API (POST + SSE stream)
+│   │   ├── quick_search.py       # 快速检索 API (即时问答)
+│   │   ├── documents.py          # 资料管理 API (上传/列表/删除)
+│   │   └── settings.py           # 系统设置 API (读/写/热重载)
 │   └── services/research_service.py  # 任务管理
-├── frontend/                     # Streamlit 前端
-│   ├── app.py                    # 主页面（输入框 + 提交 + 结果展示）
-│   ├── sse_client.py             # SSE 客户端
-│   └── components/
-│       ├── agent_progress.py     # Agent 思考过程实时可视化
-│       └── report_view.py        # 报告渲染 + 引用列表
+├── frontend-vue/                 # Vue 3 前端
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── ResearchPage.vue  # 深度研究主页
+│   │   │   ├── QuickSearchPage.vue  # 快速检索（对话式）
+│   │   │   ├── DocumentsPage.vue # 资料管理（上传/预览/删除）
+│   │   │   └── SettingsPage.vue  # 系统设置（LLM/嵌入/检索配置）
+│   │   ├── components/           # UI 组件
+│   │   ├── stores/               # Pinia 状态管理
+│   │   ├── composables/          # SSE 连接管理等
+│   │   └── api/                  # 后端 API 调用层
+│   └── package.json
 ├── config/                       # 配置
 │   ├── settings.py               # pydantic-settings 配置类
 │   ├── .env                      # 实际配置（不提交 Git）
 │   └── .env.example              # 配置模板
-├── data/sample_docs/             # 示例文档
-│   ├── ai_medical_imaging.md     # AI 医疗影像
-│   ├── ai_drug_discovery.md      # AI 药物研发
-│   └── rag_technology_overview.md # RAG 技术概述
+├── data/
+│   ├── sample_docs/              # 示例文档
+│   │   ├── ai_medical_imaging.md
+│   │   ├── ai_drug_discovery.md
+│   │   └── rag_technology_overview.md
+│   ├── chroma_db/                # ChromaDB 持久化数据
+│   └── uploads/                  # 用户上传的文件
 ├── tests/                        # 测试（26 个用例）
 │   ├── test_decomposition.py     # 查询拆解
 │   ├── test_retrieval.py         # 检索模块
@@ -383,6 +381,36 @@ curl -N http://localhost:8000/api/v1/research/a1b2c3d4e5f6/stream
 | `synthesis_chunk`     | `{text}`                                      | 报告文本片段 |
 | `done`                | `{}`                                          | 完成     |
 
+
+### POST /api/v1/quick-search
+
+快速检索 + AI 摘要（同步，秒级响应）。
+
+```bash
+curl -X POST http://localhost:8000/api/v1/quick-search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Transformer的核心机制是什么？", "top_k": 5}'
+```
+
+**Response:** `{ success, data: { query, summary, sources[], elapsed_ms } }`
+
+### Documents API
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/documents` | 文件列表（含 ChromaDB 已索引文档） |
+| POST | `/api/v1/documents/upload` | 上传文档（multipart），自动分块+嵌入+索引 |
+| DELETE | `/api/v1/documents/{id}` | 删除文档及所有关联 chunks |
+
+支持 PDF/DOCX/MD/TXT，上传后立即可被深度研究和快速检索使用。
+
+### Settings API
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/settings` | 读取当前配置（API Key 掩码） |
+| PATCH | `/api/v1/settings` | 部分更新配置，写 .env 并热重载 |
+| GET | `/api/v1/settings/system-info` | ChromaDB 统计 + 版本信息 |
 
 ### GET /api/v1/research/{task_id}
 
@@ -457,7 +485,7 @@ curl -N http://localhost:8000/api/v1/research/a1b2c3d4e5f6/stream
 | **核心技术**     | Text-to-SQL + 多 Agent 协作          | Agentic RAG + 自我纠错       |
 | **输出**       | SQL 查询 + 图表 + 分析结论                | 结构化研究报告 + 引用溯源           |
 | **Agent 框架** | LangGraph                         | LangGraph                |
-| **前端**       | Vue 3                             | Streamlit                |
+| **前端**       | Vue 3 + Vite                      | Vue 3 + Vite + Naive UI  |
 | **MCP**      | 数据库查询（MySQL/Hive）                 | 多源异构数据接入（V2 规划中）         |
 
 
@@ -469,7 +497,7 @@ curl -N http://localhost:8000/api/v1/research/a1b2c3d4e5f6/stream
 
 - **V2**：Knowledge Graph 构建 + 多跳推理（NetworkX → Neo4j）
 - **V3**：MCP 多源接入（Web Search, Notion, GitHub, 数据库）
-- **V4**：Agent 记忆系统（短期对话 + 长期用户画像）
+- **V4**：Agent 记忆系统（短期对话 + 长期用户画像）+ 多轮对话
 - **V5**：RAGAS 评估看板 + LangFuse 全链路追踪
 
 ---
