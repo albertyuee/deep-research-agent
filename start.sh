@@ -56,9 +56,22 @@ if [ ! -d "data/sample_docs" ]; then
     echo "⚠️  警告: data/sample_docs 目录不存在，跳过文档索引"
 else
     echo ""
-    echo "📚 正在索引示例文档..."
-    echo "   (首次运行需要下载 Embedding 模型，请耐心等待)"
-    python3 -c "
+    echo "📚 检查示例文档索引状态..."
+    # Skip indexing if ChromaDB already has data
+    if python3 -c "
+from research_agent.retrieval.vector_store import VectorStore
+vs = VectorStore()
+if vs.count > 0:
+    print(f'SKIP:{vs.count}')
+" 2>/dev/null | grep -q "SKIP:"; then
+        CHUNKS=$(python3 -c "
+from research_agent.retrieval.vector_store import VectorStore
+print(VectorStore().count)
+" 2>/dev/null)
+        echo "   ✓ 向量库已有 ${CHUNKS} 个 chunk，跳过索引"
+    else
+        echo "   (首次运行需要下载 Embedding 模型，请耐心等待)"
+        python3 -c "
 from research_agent.retrieval.vector_store import VectorStore
 from research_agent.retrieval.bm25 import BM25Retriever
 from pathlib import Path
@@ -84,15 +97,22 @@ for i, text in enumerate(texts):
             chunk_ids.append(f'{ids[i]}_chunk_{j}')
             chunk_metas.append({**metadatas[i], 'chunk_index': j})
 
-print('  ⏳ 加载 Embedding 模型...')
-vs = VectorStore()
-vs.add_documents(chunk_ids, chunks, chunk_metas)
-print(f'  ✓ 向量库索引完成: {vs.count} 个 chunk')
+if chunks:
+    print('  ⏳ 加载 Embedding 模型...')
+    vs = VectorStore()
+    vs.add_documents(chunk_ids, chunks, chunk_metas)
+    print(f'  ✓ 向量库索引完成: {vs.count} 个 chunk')
 
-bm25 = BM25Retriever()
-bm25.index_documents(chunk_ids, chunks, chunk_metas)
-print(f'  ✓ BM25 索引完成: {len(chunks)} 条')
-" || echo "  ⚠️  文档索引失败，请检查上方错误信息"
+    bm25 = BM25Retriever()
+    bm25.index_documents(chunk_ids, chunks, chunk_metas)
+    print(f'  ✓ BM25 索引完成: {len(chunks)} 条')
+else:
+    print('  ⚠️  无有效文档块，跳过索引')
+" 2>&1
+        if [ $? -ne 0 ]; then
+            echo "  ⚠️  文档索引失败，服务仍可启动（上传/检索功能可能受影响）"
+        fi
+    fi
 fi
 
 echo ""

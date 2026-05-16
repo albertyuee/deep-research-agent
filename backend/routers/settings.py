@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from dotenv import load_dotenv, dotenv_values
+import re
 
 from config.settings import reload_settings
 from config.settings import settings as app_settings
@@ -53,17 +53,43 @@ def _get_retrieval_settings() -> dict:
 
 
 def _write_env(updates: dict[str, str]) -> None:
-    """Write key-value pairs to the .env file, preserving existing keys."""
-    load_dotenv(ENV_FILE)
-    current = dict(dotenv_values(ENV_FILE))
-    current.update(updates)
+    """Write key-value pairs to the .env file, preserving comments and structure."""
+    # Read the original file as text (don't parse with dotenv_values — fragile)
+    if ENV_FILE.exists():
+        original_lines = ENV_FILE.read_text(encoding="utf-8").splitlines()
+    else:
+        original_lines = []
 
-    lines = []
-    for k, v in current.items():
-        lines.append(f"{k}={v}")
+    # Build a set of keys we're updating
+    updated_keys = set()
 
-    with open(ENV_FILE, "w") as f:
-        f.write("\n".join(lines) + "\n")
+    # Process each line: update matching keys, keep everything else intact
+    result: list[str] = []
+    for line in original_lines:
+        stripped = line.strip()
+        # Preserve empty lines and comments
+        if not stripped or stripped.startswith("#"):
+            result.append(line)
+            continue
+
+        # Parse KEY=VALUE
+        match = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)", stripped)
+        if match:
+            key = match.group(1)
+            if key in updates:
+                result.append(f"{key}={updates[key]}")
+                updated_keys.add(key)
+            else:
+                result.append(line)
+        else:
+            result.append(line)
+
+    # Append any new keys that weren't in the original file
+    for key, value in updates.items():
+        if key not in updated_keys:
+            result.append(f"{key}={value}")
+
+    ENV_FILE.write_text("\n".join(result) + "\n", encoding="utf-8")
 
 
 @router.get("")
