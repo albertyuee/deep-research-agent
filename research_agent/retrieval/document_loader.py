@@ -20,8 +20,9 @@ class DocumentLoader:
     Supports: PDF (.pdf), Word (.docx), Markdown (.md), plain text (.txt).
     """
 
-    def __init__(self, min_chunk_length: int = 50):
+    def __init__(self, min_chunk_length: int = 50, max_chunk_chars: int = 2000):
         self.min_chunk_length = min_chunk_length
+        self.max_chunk_chars = max_chunk_chars
 
     def load_file(self, file_path: str | Path) -> list[LoadedChunk]:
         """Load a single file and return chunked text.
@@ -140,6 +141,40 @@ class DocumentLoader:
         """Read plain text from .md or .txt files."""
         return file_path.read_text(encoding="utf-8")
 
+    def _split_long_text(self, text: str) -> list[str]:
+        """Split a long text into smaller chunks respecting max_chunk_chars.
+
+        Tries to split at sentence boundaries (。！？\\n) first,
+        then falls back to fixed-width windows.
+        """
+        if len(text) <= self.max_chunk_chars:
+            return [text]
+
+        # Try splitting at Chinese/English sentence boundaries
+        import re
+        sentences = re.split(r'(?<=[。！？.!?\n])\s*', text)
+        chunks: list[str] = []
+        current = ""
+        for sent in sentences:
+            if len(current) + len(sent) <= self.max_chunk_chars:
+                current += sent
+            else:
+                if current.strip():
+                    chunks.append(current.strip())
+                # If a single sentence exceeds the limit, split by fixed window
+                if len(sent) > self.max_chunk_chars:
+                    for j in range(0, len(sent), self.max_chunk_chars):
+                        piece = sent[j:j + self.max_chunk_chars]
+                        if piece.strip():
+                            chunks.append(piece.strip())
+                    current = ""
+                else:
+                    current = sent
+        if current.strip():
+            chunks.append(current.strip())
+
+        return chunks or [text[:self.max_chunk_chars]]
+
     def _chunk_text(
         self,
         text: str,
@@ -147,25 +182,31 @@ class DocumentLoader:
         file_name: str = "",
         file_type: str = "",
     ) -> list[LoadedChunk]:
-        """Split text into chunks by double-newline, filtering short chunks."""
+        """Split text into chunks by double-newline, filtering short chunks.
+        Long paragraphs are further split to avoid embedding API limits.
+        """
         paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
         chunks: list[LoadedChunk] = []
+        chunk_idx = 0
 
-        for i, para in enumerate(paragraphs):
-            if len(para) < self.min_chunk_length:
-                continue
-            chunk_id = f"{Path(source_path).stem}_chunk_{i}" if source_path else f"chunk_{i}"
-            chunks.append(
-                LoadedChunk(
-                    chunk_id=chunk_id,
-                    content=para,
-                    metadata={
-                        "source_path": source_path,
-                        "file_name": file_name,
-                        "file_type": file_type,
-                        "chunk_index": i,
-                    },
+        for para in paragraphs:
+            sub_chunks = self._split_long_text(para)
+            for sub in sub_chunks:
+                if len(sub) < self.min_chunk_length:
+                    continue
+                chunk_id = f"{Path(source_path).stem}_chunk_{chunk_idx}" if source_path else f"chunk_{chunk_idx}"
+                chunks.append(
+                    LoadedChunk(
+                        chunk_id=chunk_id,
+                        content=sub,
+                        metadata={
+                            "source_path": source_path,
+                            "file_name": file_name,
+                            "file_type": file_type,
+                            "chunk_index": chunk_idx,
+                        },
+                    )
                 )
-            )
+                chunk_idx += 1
 
         return chunks
