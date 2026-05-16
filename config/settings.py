@@ -94,3 +94,9 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def reload_settings():
+    """Reload settings from .env after changes. Rebuild the singleton."""
+    global settings
+    settings = Settings()
