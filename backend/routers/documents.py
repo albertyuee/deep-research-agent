@@ -78,11 +78,54 @@ class DocumentDeleteResponse(BaseModel):
     error: str | None = None
 
 
+def _scan_chroma_docs() -> list[dict]:
+    """Discover documents from ChromaDB that are not in files.json."""
+    try:
+        vs = _get_vector_store()
+        data = vs.collection.get(include=["metadatas"])
+        if not data or not data["metadatas"]:
+            return []
+
+        # Group chunks by doc_title
+        doc_groups: dict[str, dict] = {}
+        for meta in data["metadatas"]:
+            title = meta.get("doc_title") or meta.get("source") or meta.get("file_name", "unknown")
+            if title not in doc_groups:
+                doc_groups[title] = {
+                    "name": title,
+                    "chunks": 0,
+                    "upload_id": meta.get("upload_id") or meta.get("source_path", ""),
+                }
+            doc_groups[title]["chunks"] += 1
+
+        return [
+            {
+                "id": info["upload_id"][:12] if info["upload_id"] else uuid.uuid4().hex[:12],
+                "name": name + ("" if "." in name else ".md"),
+                "size": 0,
+                "chunks": info["chunks"],
+                "status": "ready",
+                "uploaded_at": "",
+            }
+            for name, info in doc_groups.items()
+        ]
+    except Exception:
+        return []
+
+
 @router.get("", response_model=DocumentListResponse)
 async def list_documents():
-    """List all uploaded documents."""
+    """List all uploaded documents plus ChromaDB-indexed documents."""
     meta = _read_files_meta()
-    return DocumentListResponse(success=True, data={"files": meta["files"]})
+    all_files = list(meta["files"])
+
+    # Supplement with ChromaDB documents not in files.json
+    existing_names = {f["name"] for f in all_files}
+    for doc in _scan_chroma_docs():
+        if doc["name"] not in existing_names:
+            all_files.append(doc)
+
+    return DocumentListResponse(success=True, data={"files": all_files})
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
