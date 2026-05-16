@@ -32,10 +32,16 @@ const visible = defineModel<boolean>('show', { required: true })
 const store = useDocumentsStore()
 const uploadError = ref<string | null>(null)
 
-async function handleUpload(options: { file: File; onFinish: () => void; onError: () => void }) {
+async function handleUpload(options: { file: { file?: File; name: string }; onFinish: () => void; onError: () => void }) {
   uploadError.value = null
+  const realFile = options.file.file
+  if (!realFile) {
+    uploadError.value = '无法读取文件'
+    options.onError()
+    return
+  }
   try {
-    await store.upload(options.file)
+    await store.upload(realFile)
     options.onFinish()
   } catch (e) {
     uploadError.value = e instanceof Error ? e.message : '上传失败'

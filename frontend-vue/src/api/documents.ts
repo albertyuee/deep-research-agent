@@ -38,7 +38,13 @@ export async function uploadDocument(file: File): Promise<DocUploadResponse['dat
   })
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))
-    throw new Error(err.detail || `上传失败: ${resp.status}`)
+    // FastAPI 422 detail can be an array of validation errors; format it
+    const msg = typeof err.detail === 'string'
+      ? err.detail
+      : Array.isArray(err.detail)
+        ? err.detail.map((e: { msg: string }) => e.msg).join('; ')
+        : `HTTP ${resp.status}`
+    throw new Error(msg)
   }
   const body: DocUploadResponse = await resp.json()
   if (!body.success) throw new Error(body.error || '上传失败')
