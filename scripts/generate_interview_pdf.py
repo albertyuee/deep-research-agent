@@ -5,6 +5,7 @@ from fpdf import FPDF
 import os
 
 OUTPUT = os.path.join(os.path.dirname(__file__), "..", "docs", "Deep_Research_Agent_面试准备.pdf")
+OUTPUT_MOBILE = os.path.join(os.path.dirname(__file__), "..", "docs", "Deep_Research_Agent_面试准备_手机版.pdf")
 FONT_PATH = "/System/Library/Fonts/STHeiti Medium.ttc"
 
 
@@ -426,5 +427,321 @@ def build():
     print(f"Pages: {pdf.page_no()}")
 
 
+# ═══════════════════════════════════════════════════════════════
+# Mobile-optimized version (smaller page, larger fonts)
+# ═══════════════════════════════════════════════════════════════
+
+class MobilePDF(FPDF):
+    """Phone-screen-friendly PDF: narrow width, large fonts, single column."""
+
+    def __init__(self):
+        super().__init__('P', 'mm', (120, 200))  # Phone-like proportions
+        self.set_auto_page_break(auto=True, margin=10)
+        self.add_font("CN", "", FONT_PATH)
+        self.set_margin(8)
+
+    def footer(self):
+        self.set_y(-10)
+        self.set_font("CN", "", 7)
+        self.set_text_color(180, 180, 180)
+        self.cell(0, 6, f"- {self.page_no()} -", align="C")
+
+    def title_block(self, text):
+        self.set_fill_color(124, 58, 237)
+        self.set_text_color(255, 255, 255)
+        self.set_font("CN", "", 14)
+        self.ln(2)
+        self.cell(0, 10, f"  {text}", fill=True, ln=True)
+        self.ln(3)
+
+    def h1(self, text):
+        self.set_x(self.l_margin)
+        self.ln(2)
+        self.set_font("CN", "", 13)
+        self.set_text_color(124, 58, 237)
+        self.cell(self.w - self.l_margin - self.r_margin, 8, text, ln=True)
+        self.set_draw_color(200, 200, 200)
+        self.line(self.get_x(), self.get_y(), self.get_x() + 104, self.get_y())
+        self.ln(3)
+
+    def h2(self, text):
+        self.set_x(self.l_margin)
+        self.set_font("CN", "", 11)
+        self.set_text_color(51, 65, 85)
+        self.cell(self.w - self.l_margin - self.r_margin, 7, text, ln=True)
+        self.ln(1)
+
+    def body(self, text):
+        self.set_x(self.l_margin)
+        self.set_font("CN", "", 9.5)
+        self.set_text_color(55, 65, 81)
+        self.multi_cell(self.w - self.l_margin - self.r_margin, 6, text)
+        self.ln(1)
+
+    def bullet(self, text):
+        self.set_font("CN", "", 9.5)
+        self.set_text_color(55, 65, 81)
+        self.set_x(self.l_margin)
+        self.multi_cell(self.w - self.l_margin - self.r_margin, 6, f"  • {text}")
+        self.set_x(self.l_margin)
+
+    def code_block(self, text):
+        self.set_fill_color(31, 41, 55)
+        self.set_text_color(229, 231, 235)
+        self.set_font("CN", "", 8)
+        self.ln(1)
+        for line in text.strip().split("\n"):
+            self.cell(4, 4, "")
+            self.cell(0, 4, line, ln=True)
+        self.set_text_color(55, 65, 81)
+        self.ln(2)
+
+    def highlight_box(self, text):
+        self.set_x(self.l_margin)
+        self.set_fill_color(245, 243, 255)
+        self.set_text_color(124, 58, 237)
+        self.set_font("CN", "", 9)
+        self.multi_cell(self.w - self.l_margin - self.r_margin, 6, text, fill=True)
+        self.ln(2)
+
+    def table_simple(self, rows, col_widths):
+        """Simple table without header styling (mobile-friendly)."""
+        for i, (cells, is_header) in enumerate(rows):
+            if is_header:
+                self.set_fill_color(124, 58, 237)
+                self.set_text_color(255, 255, 255)
+                self.set_font("CN", "", 8.5)
+            else:
+                self.set_fill_color(248, 250, 252) if i % 2 == 0 else self.set_fill_color(255, 255, 255)
+                self.set_text_color(55, 65, 81)
+                self.set_font("CN", "", 8)
+            for cell, w in zip(cells, col_widths):
+                self.cell(w, 5.5, cell, border=0, fill=True)
+            self.ln(5.5)
+
+    def separator(self):
+        self.ln(3)
+        self.set_draw_color(220, 220, 220)
+        self.line(8, self.get_y(), 112, self.get_y())
+        self.ln(3)
+
+    def qa_item(self, q, a):
+        """Render a Q&A in a mobile-friendly format."""
+        self.set_x(self.l_margin)
+        self.set_font("CN", "", 10)
+        self.set_text_color(124, 58, 237)
+        self.multi_cell(self.w - self.l_margin - self.r_margin, 7, f"Q: {q}")
+        self.ln(1)
+        self.set_font("CN", "", 9)
+        self.set_text_color(55, 65, 81)
+        self.multi_cell(self.w - self.l_margin - self.r_margin, 6, a)
+        self.ln(3)
+
+
+def build_mobile():
+    pdf = MobilePDF()
+    pdf.add_page()
+
+    # ── Cover ──
+    pdf.ln(20)
+    pdf.set_font("CN", "", 20)
+    pdf.set_text_color(124, 58, 237)
+    pdf.multi_cell(0, 12, "Deep Research\nAgent", align="C")
+    pdf.ln(2)
+    pdf.set_font("CN", "", 11)
+    pdf.set_text_color(100, 116, 139)
+    pdf.cell(0, 8, "Agentic RAG 自主深度研究", align="C", ln=True)
+    pdf.ln(4)
+    pdf.line(30, pdf.get_y(), 90, pdf.get_y())
+    pdf.ln(8)
+    pdf.set_font("CN", "", 10)
+    pdf.set_text_color(71, 85, 105)
+    pdf.cell(0, 7, "Agent 开发工程师面试准备", align="C", ln=True)
+    pdf.ln(12)
+    pdf.set_font("CN", "", 8.5)
+    pdf.set_text_color(148, 163, 184)
+    pdf.cell(0, 6, "LangGraph + FastAPI + Vue 3", align="C", ln=True)
+    pdf.cell(0, 6, "+ ChromaDB + BM25 + SSE", align="C", ln=True)
+    pdf.ln(6)
+    pdf.cell(0, 6, "2026-05-16", align="C", ln=True)
+
+    # ── Overview ──
+    pdf.add_page()
+    pdf.h1("一、项目概述")
+    pdf.body(
+        "基于 Agentic RAG 的自主深度研究系统。Agent 会主动拆解复杂问题、自主选择检索策略、"
+        "评估结果质量、在质量不达标时自我纠错，最终生成带引用的结构化研究报告。"
+    )
+    pdf.body("完整覆盖 AI Agent 核心技术栈：LangGraph 编排、多 Provider LLM、混合检索、检索质量 Critique、查询改写重试、SSE 流式推送、Vue 3 前端。")
+    pdf.separator()
+
+    pdf.h2("与传统 RAG 的关键区别")
+    pdf.table_simple([
+        (["维度", "传统 RAG", "本系统"], True),
+        (["检索次数", "1次", "最多3次（自适应重试）"], False),
+        (["检索策略", "固定向量", "Agent自主选择策略"], False),
+        (["质量判断", "无", "双维度LLM评分"], False),
+        (["查询改写", "无", "3级升级策略"], False),
+        (["输出", "单次回答", "结构化报告+引用"], False),
+    ], [22, 36, 46])
+
+    # ── Tech Stack ──
+    pdf.separator()
+    pdf.h1("二、技术栈全景")
+    pdf.body("以下按架构分层列出项目使用的核心技术，以及每项技术在面试中的讨论要点：")
+    pdf.table_simple([
+        (["层级", "技术", "面试要点"], True),
+        (["Agent编排", "LangGraph", "显式状态机，非黑盒Agent"], False),
+        (["LLM", "SiliconFlow/Qwen/OpenAI", "Factory模式多Provider"], False),
+        (["向量库", "ChromaDB", "持久化+余弦相似度"], False),
+        (["关键词", "BM25(rank-bm25)", "互补语义检索"], False),
+        (["混合检索", "RRF融合(k=60)", "向量+BM25重排序"], False),
+        (["Embed", "BGE-large-zh-v1.5", "1024维，本地/API双模式"], False),
+        (["后端", "FastAPI+SSE", "异步流式，12+端点"], False),
+        (["前端", "Vue3+Vite+TS", "CompositionAPI+Pinia"], False),
+        (["组件库", "Naive UI+Tailwind", "4页面34源文件"], False),
+        (["文档", "PyMuPDF+docx", "PDF/Word/MD/TXT"], False),
+        (["配置", "pydantic-settings", "类型安全+热重载"], False),
+    ], [22, 36, 46])
+
+    # ── Architecture ──
+    pdf.add_page()
+    pdf.h1("三、Agent 架构详解")
+    pdf.h2("LangGraph 状态流转")
+    pdf.code_block("""用户问题
+ → Decomposition: LLM拆解2-5个子问题
+ → Retrieval: 策略路由+查询改写
+ → Critique: 双维度评分(pass/fail)
+ → 条件路由:
+   [PASS] → next or Synthesis
+   [FAIL]+can retry → 改写重试
+   [FAIL]+exhausted → 标记低置信度
+ → Synthesis: 聚合+报告+引用""")
+
+    pdf.h2("四个节点职责")
+    pdf.body("Decomposition: LLM拆解问题为2-5个子问题，每个标注最优检索策略（semantic/keyword/hybrid），给出选择理由。")
+    pdf.body("Retrieval: 按策略标签路由检索方法。重试时调用QueryRewriter改写查询——L1 broaden（扩展）、L2 switch（切换策略）、L3 rephrase（改写表达），top_k随重试指数扩展。")
+    pdf.body("Critique: LLM双维度评分——相关性(relevance)+完整性(completeness)→composite_score。≥0.6通过，否则给出retry_suggestion。")
+    pdf.body("Synthesis: Aggregator去重聚合+冲突检测→ReportGenerator流式生成Markdown→CitationBuilder内联引用标注。")
+
+    pdf.h2("自我纠错机制（核心亮点）")
+    pdf.body("这是与传统RAG最核心的区别。检索不合格时Agent不会接受低质量结果，而是启动3级升级重试：")
+    pdf.bullet("L1 broaden: 扩展查询范围，增加同义词")
+    pdf.bullet("L2 switch: 切换检索策略，top_k × 2")
+    pdf.bullet("L3 rephrase: 完全改写表达，top_k × 4")
+    pdf.body("3次后仍不达标→标记low_confidence→用最佳可用结果继续→报告中标注可信度较低。保证不卡死+信息透明。")
+
+    # ── Key Highlights ──
+    pdf.add_page()
+    pdf.h1("四、核心面试问答")
+
+    qa_mobile = [
+        ("为什么用LangGraph而不是LangChain AgentExecutor？",
+         "LangChain AgentExecutor是黑盒——无法精确控制每一步。LangGraph StateGraph显式定义4个节点+1个条件路由，每一步状态完全可控、可观测、可调试。生产环境中当Agent做错误决策时，可以精确追溯到哪个节点、什么状态下出了问题。"),
+        ("为什么Critique是独立节点？",
+         "职责分离。Critique可以用LLM评分（当前）、Cross-Encoder重排序、规则引擎、甚至人工审核——改Critique不影响Retrieval，改Retrieval不影响Critique。每个节点只做一件事，接口清晰，可插拔。"),
+        ("混合检索vs纯向量检索？",
+         "向量检索擅长语义匹配但精确匹配差（数字、专有名词）。BM25互补。例如查询'BERT-base参数量110M'，向量可能返回BERT架构长篇描述，但BM25能精确命中'110M'。RRF融合两者排序，k=60是实验验证的较优参数。"),
+        ("如何控制Agent幻觉？",
+         "三层控制：(1)Critique阈值过滤——质量<0.6触发重试而非强行回答；(2)System Prompt约束'检索不到就说不确定'；(3)低置信度标记——重试耗尽后在报告中标注可靠性存疑。"),
+        ("SSEvsWebSocket为什么选SSE？",
+         "单向推送够用，不需要双向通信。SSE更轻量，浏览器原生EventSource自带自动重连。事件粒度细化到每个子步骤，让用户实时感知Agent思考过程。"),
+        ("前端为什么从Streamlit迁移到Vue3？",
+         "Streamlit的session_state+queue.Queue+st.rerun()轮询模式脆弱，DOM残留频发。Vue3响应式系统天然解决状态同步，EventSource替代轮询，Pinia替代session_state，组件化让每个模块独立可测试。"),
+        (".env热重载怎么实现？",
+         "PATCH→逐行读写.env（不用dotenv_values解析，对特殊字符太脆弱）→正则匹配KEY=VALUE→替换/追加→重建Settings单例→下次LLM调用即生效。API Key掩码后不会回写。"),
+    ]
+
+    for q, a in qa_mobile:
+        pdf.qa_item(q, a)
+        pdf.separator()
+
+    # ── Frontend & API ──
+    pdf.add_page()
+    pdf.h1("五、前端工程化")
+    pdf.body("Vue 3 + Vite + TypeScript + Naive UI + Tailwind CSS，4个功能页面，34个源文件。")
+    pdf.table_simple([
+        (["页面", "路由", "功能"], True),
+        (["深度研究", "/", "Agent进度可视化+报告流式渲染"], False),
+        (["快速检索", "/quick-search", "对话式UI，秒级响应"], False),
+        (["资料管理", "/documents", "上传/预览/删除，自动索引"], False),
+        (["系统设置", "/settings", "LLM/嵌入/检索配置，热重载"], False),
+    ], [24, 30, 50])
+
+    pdf.separator()
+    pdf.h1("六、后端API设计")
+    pdf.table_simple([
+        (["方法", "端点", "说明"], True),
+        (["POST", "/api/v1/research", "提交深度研究"], False),
+        (["GET", "/.../{id}/stream", "SSE流式推送"], False),
+        (["POST", "/.../quick-search", "快速检索+AI摘要"], False),
+        (["GET/POST/DEL", "/.../documents", "资料管理CRUD"], False),
+        (["GET/PATCH", "/.../settings", "配置读/写+热重载"], False),
+    ], [28, 38, 38])
+
+    pdf.separator()
+    pdf.h2("SSE事件流")
+    pdf.table_simple([
+        (["事件", "数据", "时机"], True),
+        (["plan_start", "{query}", "开始拆解"], False),
+        (["plan_chunk", "{index,question,strategy}", "每个子问题"], False),
+        (["retrieval_start", "{step,total,strategy}", "开始检索"], False),
+        (["retrieval_result", "{count,top_score}", "检索完成"], False),
+        (["critique_result", "{score,relevance,passed}", "评估完成"], False),
+        (["synthesis_chunk", "{text}", "报告流式片段"], False),
+        (["done", "{report_length}", "全部完成"], False),
+    ], [32, 40, 32])
+
+    # ── Demo Flow ──
+    pdf.add_page()
+    pdf.h1("七、演示流程（5-8分钟）")
+    steps_mobile = [
+        ("1. 空状态 (30s)", "展示欢迎页和功能布局"),
+        ("2. 深度研究 (3min)",
+         "输入'Transformer相比LSTM有哪些优势？'→Stepper四阶段→左侧拆解的子问题和评分→右侧报告流式生成→来源引用卡片"),
+        ("3. 快速检索 (1min)", "侧边栏「快速检索」→输入问题→秒级回复+AI摘要"),
+        ("4. 资料管理 (1min)", "「资料管理」→上传PDF→自动索引→预览/删除"),
+        ("5. 系统设置 (30s)", "「系统设置」→展示LLM/嵌入/检索配置→说明热重载"),
+    ]
+    for title, desc in steps_mobile:
+        pdf.h2(title)
+        pdf.body(desc)
+
+    # ── Self-Intro ──
+    pdf.separator()
+    pdf.h1("八、自我介绍模板（2-3分钟）")
+    pdf.highlight_box(
+        "我开发了一个基于Agentic RAG的深度研究Agent，核心价值是让Agent具备主动研究能力。"
+        "技术上用LangGraph StateGraph做显式状态编排——定义了拆解、检索、评估、合成四个节点和一个条件路由。"
+        "检索层是混合检索，向量+BM25+RRF融合，Agent会根据问题特征自主选择检索策略。"
+        "最核心的是自我纠错机制——检索质量不达标时，自动改写查询、切换策略，最多3次升级重试。"
+        "后端FastAPI+SSE流式推送，前端Vue 3+TypeScript做了完整的工程化落地——四个功能模块、34个前端文件、12+REST端点。"
+        "整个项目47次渐进式提交，从设计文档到代码都有完整记录。"
+    )
+
+    # ── Deep Questions ──
+    pdf.add_page()
+    pdf.h1("九、进阶追问预案")
+    deep_qa_mobile = [
+        ("为什么不直接用LangChain的create_retrieval_chain？",
+         "那是单次检索+回答模式。我的场景需要多步推理——拆解成子问题、每个独立检索评估、失败后重试。create_retrieval_chain做不到这个闭环。"),
+        ("ChromaDB数据量大了怎么办？",
+         "ChromaDB适合10万级chunks。更大场景可替换为Milvus——VectorStore是抽象接口，切换只需改一个类。配置里已预留MILVUS_前缀。"),
+        ("多轮对话怎么设计？",
+         "Pinia chat store维护对话历史，作为research请求的context参数传入后端。SSE事件流天然支持追加。"),
+        ("如果LLM挂了怎么处理？",
+         "所有LLM调用有exception捕获+SSE error事件。多Provider架构（Factory模式）可通过配置快速切换备用Provider。"),
+    ]
+    for q, a in deep_qa_mobile:
+        pdf.qa_item(q, a)
+
+    # ── Save ──
+    os.makedirs(os.path.dirname(OUTPUT_MOBILE), exist_ok=True)
+    pdf.output(OUTPUT_MOBILE)
+    print(f"Mobile PDF generated: {OUTPUT_MOBILE}")
+    print(f"Pages: {pdf.page_no()}")
+
+
 if __name__ == "__main__":
     build()
+    build_mobile()
