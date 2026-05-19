@@ -95,31 +95,45 @@
             <label class="text-xs text-gray-500 mb-2 block">存储后端</label>
             <n-radio-group v-model:value="form.retrieval.vector_backend">
               <n-radio value="chroma">ChromaDB（本地嵌入式）</n-radio>
-              <n-radio value="milvus">Zilliz Cloud / Milvus</n-radio>
+              <n-radio value="milvus">Milvus（Zilliz Cloud 或自建）</n-radio>
             </n-radio-group>
           </div>
 
-          <div v-if="form.retrieval.vector_backend === 'milvus'" class="grid grid-cols-2 gap-4 mt-3 p-3 bg-gray-50 rounded-lg">
-            <div class="col-span-2">
-              <label class="text-xs text-gray-500 mb-1 block">Zilliz Cloud URI</label>
-              <n-input v-model:value="form.milvus.uri" size="small" placeholder="https://in03-xxxx.api.vectordb.zillizcloud.com" />
-            </div>
-            <div class="col-span-2">
-              <label class="text-xs text-gray-500 mb-1 block">Zilliz Token</label>
-              <n-input v-model:value="form.milvus.token" type="password" show-password-on="click" size="small" placeholder="留空则不修改" />
-            </div>
+          <div v-if="form.retrieval.vector_backend === 'milvus'" class="p-3 bg-gray-50 rounded-lg space-y-3">
+            <!-- Zilliz Cloud -->
             <div>
-              <label class="text-xs text-gray-500 mb-1 block">自建 Host（可选）</label>
-              <n-input v-model:value="form.milvus.host" size="small" placeholder="localhost" />
+              <label class="text-xs font-medium text-gray-600 mb-1 block">Zilliz Cloud（托管服务，推荐）</label>
+              <p class="text-xs text-gray-400 mb-2">在 zilliz.com 注册获取，免费额度足以开发使用</p>
+              <div class="grid grid-cols-1 gap-2">
+                <n-input v-model:value="form.milvus.uri" size="small" placeholder="https://in03-xxxx.api.vectordb.zillizcloud.com">
+                  <template #prefix>
+                    <span class="text-xs text-gray-400 w-10 inline-block">URI</span>
+                  </template>
+                </n-input>
+                <n-input v-model:value="form.milvus.token" type="password" show-password-on="click" size="small" placeholder="API Token，留空则不修改">
+                  <template #prefix>
+                    <span class="text-xs text-gray-400 w-10 inline-block">Token</span>
+                  </template>
+                </n-input>
+              </div>
             </div>
-            <div>
-              <label class="text-xs text-gray-500 mb-1 block">自建 Port（可选）</label>
-              <n-input-number v-model:value="form.milvus.port" size="small" :min="1" :max="65535" />
+
+            <!-- Self-hosted -->
+            <div class="pt-2 border-t border-gray-200">
+              <label class="text-xs font-medium text-gray-500 mb-1 block">自建 Milvus（不使用 Zilliz Cloud 时填写）</label>
+              <div class="grid grid-cols-2 gap-2">
+                <n-input v-model:value="form.milvus.host" size="small" placeholder="localhost">
+                  <template #prefix>
+                    <span class="text-xs text-gray-400 w-10 inline-block">Host</span>
+                  </template>
+                </n-input>
+                <n-input-number v-model:value="form.milvus.port" size="small" :min="1" :max="65535" placeholder="19530" />
+              </div>
             </div>
           </div>
 
           <n-alert type="warning" :bordered="false" class="mt-3 text-xs">
-            切换存储后端后，需要重新索引文档才能在新后端检索。
+            切换存储后端需重启后端生效，且需要重新索引文档。
           </n-alert>
         </SettingsSection>
       </div>
