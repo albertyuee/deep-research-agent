@@ -303,10 +303,13 @@ export const useResearchStore = defineStore('research', () => {
         break
       }
 
-      case 'web_search_start':
+      case 'web_search_start': {
+        previousStep.value = currentStep.value
         currentDetail.value = `正在联网搜索: ${(data.query as string || '').slice(0, 40)}...`
         webSearchResults.value = []
+        phaseStates.value.retrieval = 'running'
         break
+      }
 
       case 'web_search_result': {
         const results = (data.results as WebSearchResultItem[]) || []

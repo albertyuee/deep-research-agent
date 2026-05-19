@@ -72,6 +72,7 @@ async def decomposition_node(state: ResearchState) -> ResearchState:
             "index": sq["index"],
             "question": sq["question"],
             "strategy": sq["strategy"],
+            "data_source": sq.get("data_source", "local"),
             "rationale": sq.get("rationale", ""),
             "progress": p,
         })
@@ -201,8 +202,8 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
             {
                 "title": r["metadata"].get("title", ""),
                 "url": r["metadata"].get("url", ""),
-                "content": r["content"][:200],
-                "score": r["score"],
+                "content": (r.get("content") or "")[:200],
+                "score": r.get("score") or 0.0,
             }
             for r in web_results
         ]

@@ -49,8 +49,8 @@ async def search_web(query: str, max_results: int | None = None) -> list[dict]:
         for r in web_results:
             normalized.append({
                 "chunk_id": f"web-{uuid.uuid4().hex[:8]}",
-                "content": r.get("content", ""),
-                "score": r.get("score", 0.8),
+                "content": r.get("content") or "",
+                "score": r.get("score") or 0.0,
                 "vector_score": None,
                 "bm25_score": None,
                 "metadata": {
