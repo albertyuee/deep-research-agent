@@ -25,7 +25,7 @@ from research_agent.planner.decomposer import decompose_query
 from research_agent.planner.research_plan import ResearchPlan
 from research_agent.retrieval.strategy import select_strategy
 from research_agent.retrieval.hybrid import HybridRetriever
-from research_agent.retrieval.vector_store import VectorStore
+from research_agent.retrieval.vector_store import VectorStore, create_vector_store
 from research_agent.retrieval.bm25 import BM25Retriever
 from research_agent.retrieval.rewriter import rewrite_query, RewriteAction
 from research_agent.critique.scorer import critique_retrieval
@@ -450,10 +450,10 @@ _vector_store: VectorStore | None = None
 _bm25: BM25Retriever | None = None
 
 
-def _get_vector_store() -> VectorStore:
+def _get_vector_store():
     global _vector_store
     if _vector_store is None:
-        _vector_store = VectorStore()
+        _vector_store = create_vector_store()
     return _vector_store
 
 

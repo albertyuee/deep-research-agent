@@ -45,8 +45,13 @@ class MilvusSettings(BaseSettings):
         "extra": "ignore"
     }
 
+    # Self-hosted Milvus
     host: str = "localhost"
     port: int = 19530
+    # Zilliz Cloud (managed Milvus) — set uri + token instead of host/port
+    uri: str = ""
+    token: str = ""
+    # Common
     collection_name: str = "research_docs"
     dimension: int = 384
 
