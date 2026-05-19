@@ -115,24 +115,42 @@ class MilvusVectorStore:
     def _ensure_collection(self) -> None:
         client = self._get_client()
         if not client.has_collection(self._collection_name):
+            from research_agent.retrieval.embedding import get_embedding_service
+
+            # Auto-detect actual embedding dimension
+            emb_service = get_embedding_service()
+            dim = emb_service.dimension
+            self._dimension = dim
+
             client.create_collection(
                 collection_name=self._collection_name,
-                dimension=self._dimension,
+                dimension=dim,
                 metric_type="COSINE",
+                auto_id=True,
             )
 
     def add_documents(
         self, ids: list[str], texts: list[str], metadatas: list[dict] | None = None
     ) -> None:
-        """Add documents to the vector store."""
+        """Add documents to the vector store.
+
+        Milvus auto-generates int64 primary keys. We store the original chunk_id
+        as a separate 'chunk_id' field for retrieval.
+        """
         from research_agent.retrieval.embedding import get_embedding_service
 
         emb_service = get_embedding_service()
         embeddings = emb_service.embed(texts).tolist()
+        meta_list = metadatas or [{}] * len(texts)
 
         data = [
-            {"id": id_, "vector": emb, "text": text, **((metadatas or [{}] * len(texts))[i])}
-            for i, (id_, emb, text) in enumerate(zip(ids, embeddings, texts))
+            {
+                "chunk_id": id_,
+                "vector": emb,
+                "text": text,
+                **meta,
+            }
+            for id_, emb, text, meta in zip(ids, embeddings, texts, meta_list)
         ]
 
         client = self._get_client()
@@ -151,14 +169,14 @@ class MilvusVectorStore:
             collection_name=self._collection_name,
             data=[query_emb],
             limit=top_k,
-            output_fields=["id", "text", "*"],
+            output_fields=["chunk_id", "text", "*"],
         )
 
         output = []
         for hit_list in results:
             for hit in hit_list:
                 entity = hit.get("entity", {})
-                chunk_id = entity.get("id", str(hit.get("id", "")))
+                chunk_id = entity.get("chunk_id", "")
                 content = entity.get("text", "")
 
                 # Milvus returns distance (COSINE: 0=identical, 2=opposite)
@@ -167,7 +185,7 @@ class MilvusVectorStore:
 
                 metadata = {
                     k: v for k, v in entity.items()
-                    if k not in ("id", "text", "vector")
+                    if k not in ("chunk_id", "text", "vector")
                 }
 
                 output.append(
@@ -188,7 +206,12 @@ class MilvusVectorStore:
             stats = client.get_collection_stats(self._collection_name)
             return stats.get("row_count", 0)
         except Exception:
-            return 0
+            # Fallback: try describe_collection
+            try:
+                info = client.describe_collection(self._collection_name)
+                return info.get("num_entities", 0)
+            except Exception:
+                return 0
 
 
 def create_vector_store() -> VectorStore | MilvusVectorStore:
