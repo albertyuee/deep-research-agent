@@ -52,6 +52,16 @@ def _get_retrieval_settings() -> dict:
     }
 
 
+def _get_milvus_settings() -> dict:
+    return {
+        "uri": app_settings.milvus.uri,
+        "token": _mask_key(app_settings.milvus.token) if app_settings.milvus.token else "",
+        "host": app_settings.milvus.host,
+        "port": app_settings.milvus.port,
+        "collection_name": app_settings.milvus.collection_name,
+    }
+
+
 def _write_env(updates: dict[str, str]) -> None:
     """Write key-value pairs to the .env file, preserving comments and structure."""
     # Read the original file as text (don't parse with dotenv_values — fragile)
@@ -100,6 +110,7 @@ async def get_settings():
             "llm": _get_llm_settings(),
             "embedding": _get_embedding_settings(),
             "retrieval": _get_retrieval_settings(),
+            "milvus": _get_milvus_settings(),
         },
     }
 
@@ -127,9 +138,13 @@ async def update_settings(body: dict):
         "retrieval.critique_threshold": ("RETRIEVAL_CRITIQUE_THRESHOLD", str),
         "retrieval.rrf_k": ("RETRIEVAL_RRF_K", str),
         "retrieval.vector_backend": ("RETRIEVAL_VECTOR_BACKEND", str),
+        "milvus.uri": ("MILVUS_URI", str),
+        "milvus.token": ("MILVUS_TOKEN", str),
+        "milvus.host": ("MILVUS_HOST", str),
+        "milvus.port": ("MILVUS_PORT", str),
     }
 
-    for section in ["llm", "embedding", "retrieval"]:
+    for section in ["llm", "embedding", "retrieval", "milvus"]:
         if section in body:
             for key, value in body[section].items():
                 path = f"{section}.{key}"
@@ -157,17 +172,20 @@ async def update_settings(body: dict):
 
 @router.get("/system-info")
 async def get_system_info():
+    from research_agent.retrieval.vector_store import create_vector_store
+
+    backend = app_settings.retrieval.vector_backend
     try:
-        from research_agent.retrieval.vector_store import VectorStore
-        vs = VectorStore()
-        chroma_chunks = vs.count
+        vs = create_vector_store()
+        chunk_count = vs.count
     except Exception:
-        chroma_chunks = 0
+        chunk_count = 0
 
     return {
         "success": True,
         "data": {
-            "chroma_chunks": chroma_chunks,
+            "vector_backend": backend,
+            "chunk_count": chunk_count,
             "version": "0.1.0",
         },
     }

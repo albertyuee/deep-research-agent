@@ -25,14 +25,24 @@ export interface RetrievalSettings {
   vector_backend: string
 }
 
+export interface MilvusSettings {
+  uri: string
+  token: string
+  host: string
+  port: number
+  collection_name: string
+}
+
 export interface SettingsData {
   llm: LLMSettings
   embedding: EmbeddingSettings
   retrieval: RetrievalSettings
+  milvus: MilvusSettings
 }
 
 export interface SystemInfo {
-  chroma_chunks: number
+  vector_backend: string
+  chunk_count: number
   version: string
 }
 
@@ -44,7 +54,7 @@ export async function fetchSettings(): Promise<SettingsData> {
 }
 
 export async function updateSettings(
-  patch: Partial<{ llm: Partial<LLMSettings>; embedding: Partial<EmbeddingSettings>; retrieval: Partial<RetrievalSettings> }>
+  patch: Partial<{ llm: Partial<LLMSettings>; embedding: Partial<EmbeddingSettings>; retrieval: Partial<RetrievalSettings>; milvus: Partial<MilvusSettings> }>
 ): Promise<{ updated: string[]; need_restart: boolean }> {
   const resp = await fetch(`${BASE}/settings`, {
     method: 'PATCH',

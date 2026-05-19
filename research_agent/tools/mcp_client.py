@@ -46,13 +46,18 @@ class MCPClient:
             return
 
         try:
+            # Resolve project root for reliable subprocess launch
+            project_root = str(settings.project_root)
+
             server_params = StdioServerParameters(
                 command=sys.executable,
                 args=["-m", "mcp_servers.web_search"],
                 env={
                     **os.environ,
                     "TAVILY_API_KEY": settings.mcp.tavily_api_key,
+                    "PYTHONPATH": project_root,
                 },
+                cwd=project_root,
             )
 
             # Enter stdio_client context manager

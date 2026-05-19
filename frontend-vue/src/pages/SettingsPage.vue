@@ -88,6 +88,40 @@
             </div>
           </div>
         </SettingsSection>
+
+        <!-- Vector Store -->
+        <SettingsSection title="向量存储">
+          <div class="mb-4">
+            <label class="text-xs text-gray-500 mb-2 block">存储后端</label>
+            <n-radio-group v-model:value="form.retrieval.vector_backend">
+              <n-radio value="chroma">ChromaDB（本地嵌入式）</n-radio>
+              <n-radio value="milvus">Zilliz Cloud / Milvus</n-radio>
+            </n-radio-group>
+          </div>
+
+          <div v-if="form.retrieval.vector_backend === 'milvus'" class="grid grid-cols-2 gap-4 mt-3 p-3 bg-gray-50 rounded-lg">
+            <div class="col-span-2">
+              <label class="text-xs text-gray-500 mb-1 block">Zilliz Cloud URI</label>
+              <n-input v-model:value="form.milvus.uri" size="small" placeholder="https://in03-xxxx.api.vectordb.zillizcloud.com" />
+            </div>
+            <div class="col-span-2">
+              <label class="text-xs text-gray-500 mb-1 block">Zilliz Token</label>
+              <n-input v-model:value="form.milvus.token" type="password" show-password-on="click" size="small" placeholder="留空则不修改" />
+            </div>
+            <div>
+              <label class="text-xs text-gray-500 mb-1 block">自建 Host（可选）</label>
+              <n-input v-model:value="form.milvus.host" size="small" placeholder="localhost" />
+            </div>
+            <div>
+              <label class="text-xs text-gray-500 mb-1 block">自建 Port（可选）</label>
+              <n-input-number v-model:value="form.milvus.port" size="small" :min="1" :max="65535" />
+            </div>
+          </div>
+
+          <n-alert type="warning" :bordered="false" class="mt-3 text-xs">
+            切换存储后端后，需要重新索引文档才能在新后端检索。
+          </n-alert>
+        </SettingsSection>
       </div>
 
       <SystemInfo :info="store.systemInfo" :loading="store.isLoading" />
@@ -115,6 +149,7 @@ const form = reactive({
   llm: { provider: 'siliconflow', model: '', api_key: '', base_url: '', temperature: 0.3, max_tokens: 4096 },
   embedding: { mode: 'api', model: '', api_key: '', device: 'cpu', api_base_url: '' },
   retrieval: { top_k: 5, max_retries: 3, critique_threshold: 0.6, rrf_k: 60, vector_backend: 'chroma' },
+  milvus: { uri: '', token: '', host: 'localhost', port: 19530, collection_name: 'research_docs' },
 })
 
 watch(() => store.settings, (s) => {
@@ -122,6 +157,7 @@ watch(() => store.settings, (s) => {
     Object.assign(form.llm, s.llm)
     Object.assign(form.embedding, s.embedding)
     Object.assign(form.retrieval, s.retrieval)
+    if ((s as any).milvus) Object.assign(form.milvus, (s as any).milvus)
   }
 }, { immediate: true })
 
@@ -132,6 +168,7 @@ function onSave() {
     llm: form.llm,
     embedding: form.embedding,
     retrieval: form.retrieval,
+    milvus: form.retrieval.vector_backend === 'milvus' ? form.milvus : undefined,
   })
 }
 </script>
