@@ -85,6 +85,19 @@ class RetrievalSettings(BaseSettings):
     vector_backend: Literal["milvus", "chroma"] = "chroma"
 
 
+class MCPSettings(BaseSettings):
+    model_config = {
+        "env_prefix": "MCP_",
+        "env_file": Path(__file__).parent / ".env",
+        "extra": "ignore"
+    }
+
+    web_search_enabled: bool = False
+    tavily_api_key: str = ""
+    tavily_max_results: int = 5
+    web_search_timeout: float = 30.0
+
+
 class Settings(BaseSettings):
     model_config = {
         "env_file": Path(__file__).parent / ".env",
@@ -96,6 +109,7 @@ class Settings(BaseSettings):
     milvus: MilvusSettings = Field(default_factory=MilvusSettings)
     chroma: ChromaSettings = Field(default_factory=ChromaSettings)
     retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
+    mcp: MCPSettings = Field(default_factory=MCPSettings)
 
     project_root: Path = Field(default_factory=lambda: Path(__file__).parent.parent)
     data_dir: Path = Field(default_factory=lambda: Path(__file__).parent.parent / "data")

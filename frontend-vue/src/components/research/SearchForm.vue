@@ -38,6 +38,21 @@
         </div>
       </div>
 
+      <!-- 网络搜索开关 -->
+      <div class="flex items-center gap-3 mt-3">
+        <n-switch
+          v-model:value="enableWebSearch"
+          :disabled="isRunning"
+          size="small"
+        />
+        <span class="text-xs text-gray-500">
+          联网搜索
+          <span class="text-gray-400 ml-1">
+            {{ enableWebSearch ? '已开启：将获取实时信息辅助研究' : '已关闭：仅使用本地知识库' }}
+          </span>
+        </span>
+      </div>
+
       <div v-if="!isRunning" class="flex flex-wrap gap-2 mt-3">
         <span
           v-for="(ex, i) in examples"
@@ -62,7 +77,7 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  submit: [query: string]
+  submit: [query: string, enableWebSearch: boolean]
   stop: []
 }>()
 
@@ -75,11 +90,12 @@ const examples = [
 ]
 
 const inputText = ref(examples[0])
+const enableWebSearch = ref(false)
 
 function emitSubmit() {
   const q = inputText.value.trim()
   if (q) {
-    emit('submit', q)
+    emit('submit', q, enableWebSearch.value)
   }
 }
 

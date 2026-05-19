@@ -20,6 +20,7 @@ agent_graph = build_graph()
 
 class ResearchRequest(BaseModel):
     query: str
+    enable_web_search: bool = False
 
 
 class ResearchResponse(BaseModel):
@@ -40,10 +41,12 @@ async def submit_research(req: ResearchRequest):
     task_manager.update_status(task_id, TaskStatus.RUNNING)
 
     # Run agent in background
-    asyncio.create_task(_run_agent(task_id, req.query))
+    asyncio.create_task(_run_agent(task_id, req.query, req.enable_web_search))
 
     import sys
-    print(f"[ROUTER] Task {task_id} submitted, query={req.query[:60]}", flush=True, file=sys.stderr)
+    web_flag = "ON" if req.enable_web_search else "OFF"
+    print(f"[ROUTER] Task {task_id} submitted, query={req.query[:60]}, web={web_flag}",
+          flush=True, file=sys.stderr)
 
     return ResearchResponse(
         success=True,
@@ -108,7 +111,7 @@ async def cancel_research(task_id: str):
         raise HTTPException(status_code=500, detail="Failed to cancel task")
 
 
-async def _run_agent(task_id: str, query: str):
+async def _run_agent(task_id: str, query: str, enable_web_search: bool = False):
     """Execute the agent graph for a research task."""
     import sys, time
     current_task = asyncio.current_task()
@@ -116,10 +119,12 @@ async def _run_agent(task_id: str, query: str):
         task_manager.register_task(task_id, current_task)
 
     try:
-        print(f"[AGENT {task_id}] _run_agent START, query={query[:60]}", flush=True, file=sys.stderr)
+        print(f"[AGENT {task_id}] _run_agent START, query={query[:60]}, web={enable_web_search}",
+              flush=True, file=sys.stderr)
         initial_state = {
             "query": query,
             "task_id": task_id,
+            "enable_web_search": enable_web_search,
         }
         t0 = time.time()
         print(f"[AGENT {task_id}] Calling agent_graph.ainvoke...", flush=True, file=sys.stderr)

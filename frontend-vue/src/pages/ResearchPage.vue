@@ -19,6 +19,7 @@
       <div class="lg:col-span-1">
         <AgentStepper />
         <ProgressPanel />
+        <WebSearchCard />
         <EventTimeline />
       </div>
 
@@ -84,6 +85,7 @@ import SearchForm from '@/components/research/SearchForm.vue'
 import AgentStepper from '@/components/research/AgentStepper.vue'
 import ProgressPanel from '@/components/research/ProgressPanel.vue'
 import EventTimeline from '@/components/research/EventTimeline.vue'
+import WebSearchCard from '@/components/research/WebSearchCard.vue'
 import ReportView from '@/components/report/ReportView.vue'
 import SourceList from '@/components/report/SourceList.vue'
 
@@ -100,8 +102,8 @@ const steps = [
   { title: '获取报告', desc: '结构化研究报告 + 可追溯引用来源' },
 ]
 
-async function onSubmit(query: string) {
-  await start(query)
+async function onSubmit(query: string, enableWebSearch: boolean) {
+  await start(query, enableWebSearch)
 }
 
 async function onStop() {

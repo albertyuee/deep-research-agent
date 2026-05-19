@@ -51,6 +51,13 @@ export interface Source {
   content: string
 }
 
+export interface WebSearchResultItem {
+  title: string
+  url: string
+  content: string
+  score: number
+}
+
 export const useResearchStore = defineStore('research', () => {
   const query = ref('')
   const taskId = ref<string | null>(null)
@@ -83,6 +90,7 @@ export const useResearchStore = defineStore('research', () => {
   const phaseStartTimes = ref<Record<string, number>>({})
 
   const previousStep = ref('')
+  const webSearchResults = ref<WebSearchResultItem[]>([])
 
   const currentStep = computed(() => {
     if (isCancelled.value) return 'cancelled'
@@ -127,6 +135,7 @@ export const useResearchStore = defineStore('research', () => {
     phaseDurations.value = {}
     phaseStartTimes.value = {}
     previousStep.value = ''
+    webSearchResults.value = []
   }
 
   function summarizeEvent(eventType: string, data: Record<string, unknown>): string {
@@ -152,6 +161,12 @@ export const useResearchStore = defineStore('research', () => {
         return `开始生成报告 (${data.total_steps} 步骤聚合)`
       case 'synthesis_chunk':
         return `报告片段: ${(data.text as string || '').slice(0, 60)}...`
+      case 'web_search_start':
+        return `联网搜索: ${(data.query as string || '').slice(0, 50)}`
+      case 'web_search_result':
+        return `联网搜索完成: ${data.result_count} 条结果`
+      case 'retrieval_combined':
+        return `检索汇总: 本地 ${data.local_count} + 网络 ${data.web_count} = ${data.total_count} 条`
       case 'done':
         return `完成, 报告长度: ${data.report_length || 0} 字符`
       case 'error':
@@ -288,6 +303,25 @@ export const useResearchStore = defineStore('research', () => {
         break
       }
 
+      case 'web_search_start':
+        currentDetail.value = `正在联网搜索: ${(data.query as string || '').slice(0, 40)}...`
+        webSearchResults.value = []
+        break
+
+      case 'web_search_result': {
+        const results = (data.results as WebSearchResultItem[]) || []
+        webSearchResults.value = results
+        currentDetail.value = `联网搜索完成，找到 ${data.result_count} 条结果`
+        break
+      }
+
+      case 'retrieval_combined': {
+        const local = data.local_count as number || 0
+        const web = data.web_count as number || 0
+        currentDetail.value = `检索完成: 本地 ${local} + 网络 ${web} = ${data.total_count} 条`
+        break
+      }
+
       case 'retry_triggered': {
         previousStep.value = currentStep.value
         const count = data.count as number
@@ -385,7 +419,7 @@ export const useResearchStore = defineStore('research', () => {
     report, streamingReport, sources,
     phaseStates, progressValue, currentDetail,
     researchPlan, critiqueResults, retrievalProgress, eventLog, retryHistory,
-    startedAt, phaseDurations, phaseStartTimes, previousStep,
+    startedAt, phaseDurations, phaseStartTimes, previousStep, webSearchResults,
     currentStep, phaseLabels,
     reset, handleEvent, setQuery, startResearch, setSources, setFinalReport,
   }

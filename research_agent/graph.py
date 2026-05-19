@@ -47,16 +47,17 @@ async def decomposition_node(state: ResearchState) -> ResearchState:
     """Decompose the user query into sub-questions and create a research plan."""
     task_id = state.get("task_id", "")
     query = state["query"]
+    enable_web_search = state.get("enable_web_search", False)
 
     _dbg(task_id, "decomposition_node ENTER")
     emit(task_id, "research_plan_start", {"query": query, "progress": 0.05})
 
     _dbg(task_id, "creating LLM client...")
     client = create_llm_client()
-    _dbg(task_id, f"calling decompose_query (model={client.model})...")
+    _dbg(task_id, f"calling decompose_query (model={client.model}, web={enable_web_search})...")
     t0 = _time.time()
     try:
-        sub_queries = await decompose_query(client, query)
+        sub_queries = await decompose_query(client, query, enable_web_search)
         _dbg(task_id, f"decompose_query OK after {_time.time()-t0:.1f}s, {len(sub_queries)} sub-queries")
     except Exception as e:
         _dbg(task_id, f"decompose_query FAILED after {_time.time()-t0:.1f}s: {e}")
@@ -95,7 +96,8 @@ async def decomposition_node(state: ResearchState) -> ResearchState:
 async def retrieval_node(state: ResearchState) -> ResearchState:
     """Execute retrieval for the current sub-query.
 
-    On retry, rewrites the query and adjusts strategy based on retry count.
+    Dispatches to local retrieval (Chroma/BM25) and/or web search (MCP)
+    based on the data_source field in the sub-query.
     """
     task_id = state.get("task_id", "")
     step_idx = state["current_step"]
@@ -107,6 +109,7 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
 
     sub_q = sub_queries[step_idx]
     query = sub_q["question"]
+    data_source = sub_q.get("data_source", "local")
 
     # Determine strategy — on retry, may switch strategy
     client = create_llm_client()
@@ -128,54 +131,100 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
     state["retrieval_strategy"] = strategy
 
     total_steps = state["total_steps"]
-    retr_progress = 0.10 + ((step_idx) / max(total_steps, 1)) * 0.30
-    emit(task_id, "retrieval_start", {
+    retr_progress = 0.10 + (step_idx / max(total_steps, 1)) * 0.30
+
+    # ── Local Retrieval ──
+    local_results = []
+    if data_source in ("local", "both"):
+        emit(task_id, "retrieval_start", {
+            "step": step_idx + 1,
+            "total": total_steps,
+            "query": query,
+            "strategy": strategy,
+            "data_source": "local",
+            "retry_count": retry_count,
+            "progress": retr_progress,
+        })
+
+        vector_store = state.get("_vector_store") or _get_vector_store()
+        bm25 = state.get("_bm25") or _get_bm25()
+
+        if not bm25.is_indexed:
+            strategy = "semantic"  # fallback if BM25 not indexed
+
+        hybrid = HybridRetriever(vector_store, bm25)
+        top_k = settings.retrieval.top_k * (2 ** retry_count)  # expand k on retry
+
+        if strategy == "semantic":
+            results = hybrid.search_vector_only(query, top_k=top_k)
+        elif strategy == "keyword":
+            results = hybrid.search_keyword_only(query, top_k=top_k)
+        else:
+            results = hybrid.search(query, top_k=top_k)
+
+        local_results = [
+            {
+                "chunk_id": r.chunk_id,
+                "content": r.content,
+                "score": r.combined_score,
+                "vector_score": r.vector_score,
+                "bm25_score": r.bm25_score,
+                "metadata": {**r.metadata, "strategy": strategy, "source": "local"},
+            }
+            for r in results
+        ]
+
+        emit(task_id, "retrieval_result", {
+            "step": step_idx + 1,
+            "result_count": len(local_results),
+            "top_score": local_results[0]["score"] if local_results else 0,
+            "top_preview": local_results[0]["content"][:200] if local_results else "",
+            "data_source": "local",
+            "progress": retr_progress + 0.10,
+        })
+
+    # ── Web Search ──
+    web_results = []
+    if data_source in ("web", "both"):
+        emit(task_id, "web_search_start", {
+            "step": step_idx + 1,
+            "total": total_steps,
+            "query": query,
+            "progress": retr_progress + 0.10,
+        })
+
+        from research_agent.tools.web_search import search_web
+        web_results = await search_web(query)
+
+        # Build structured result list for frontend rendering
+        web_result_items = [
+            {
+                "title": r["metadata"].get("title", ""),
+                "url": r["metadata"].get("url", ""),
+                "content": r["content"][:200],
+                "score": r["score"],
+            }
+            for r in web_results
+        ]
+
+        emit(task_id, "web_search_result", {
+            "step": step_idx + 1,
+            "result_count": len(web_results),
+            "results": web_result_items,
+            "progress": retr_progress + 0.15,
+        })
+
+    # ── Merge: local first, then web ──
+    all_results = local_results + web_results
+    state["retrieval_results"] = all_results
+
+    combined_progress = 0.10 + ((step_idx + 1) / max(total_steps, 1)) * 0.30
+    emit(task_id, "retrieval_combined", {
         "step": step_idx + 1,
-        "total": total_steps,
-        "query": query,
-        "strategy": strategy,
-        "retry_count": retry_count,
-        "progress": retr_progress,
-    })
-
-    # Execute retrieval
-    vector_store = state.get("_vector_store") or _get_vector_store()
-    bm25 = state.get("_bm25") or _get_bm25()
-
-    if not bm25.is_indexed:
-        strategy = "semantic"  # fallback if BM25 not indexed
-
-    hybrid = HybridRetriever(vector_store, bm25)
-    top_k = settings.retrieval.top_k * (2 ** retry_count)  # expand k on retry
-
-    if strategy == "semantic":
-        results = hybrid.search_vector_only(query, top_k=top_k)
-    elif strategy == "keyword":
-        results = hybrid.search_keyword_only(query, top_k=top_k)
-    else:
-        results = hybrid.search(query, top_k=top_k)
-
-    result_dicts = [
-        {
-            "chunk_id": r.chunk_id,
-            "content": r.content,
-            "score": r.combined_score,
-            "vector_score": r.vector_score,
-            "bm25_score": r.bm25_score,
-            "metadata": {**r.metadata, "strategy": strategy},
-        }
-        for r in results
-    ]
-
-    state["retrieval_results"] = result_dicts
-
-    retr_res_progress = 0.10 + ((step_idx + 1) / max(total_steps, 1)) * 0.30
-    emit(task_id, "retrieval_result", {
-        "step": step_idx + 1,
-        "result_count": len(result_dicts),
-        "top_score": result_dicts[0]["score"] if result_dicts else 0,
-        "top_preview": result_dicts[0]["content"][:200] if result_dicts else "",
-        "progress": retr_res_progress,
+        "local_count": len(local_results),
+        "web_count": len(web_results),
+        "total_count": len(all_results),
+        "progress": combined_progress,
     })
 
     return state

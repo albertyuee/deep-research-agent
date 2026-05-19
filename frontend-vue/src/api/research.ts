@@ -20,11 +20,17 @@ export interface TaskResponse {
   error: string | null
 }
 
-export async function submitResearch(query: string): Promise<string> {
+export async function submitResearch(
+  query: string,
+  enableWebSearch: boolean = false,
+): Promise<string> {
   const resp = await fetch(`${BASE}/research`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({
+      query,
+      enable_web_search: enableWebSearch,
+    }),
   })
   if (!resp.ok) {
     throw new Error(`提交失败: ${resp.status} ${resp.statusText}`)

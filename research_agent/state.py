@@ -18,6 +18,7 @@ class ResearchState(TypedDict, total=False):
     # Input
     query: str
     task_id: str
+    enable_web_search: bool
 
     # Decomposition
     sub_queries: list[dict]

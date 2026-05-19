@@ -5,12 +5,12 @@ export function useResearch() {
   const store = useResearchStore()
   let eventSource: EventSource | null = null
 
-  async function start(query: string): Promise<void> {
+  async function start(query: string, enableWebSearch: boolean = false): Promise<void> {
     store.reset()
     store.setQuery(query)
 
     try {
-      const taskId = await submitResearch(query)
+      const taskId = await submitResearch(query, enableWebSearch)
       store.startResearch(taskId)
 
       eventSource = new EventSource(`/api/v1/research/${taskId}/stream`)
