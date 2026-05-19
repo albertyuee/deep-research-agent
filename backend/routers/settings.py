@@ -150,7 +150,7 @@ async def update_settings(body: dict):
                 path = f"{section}.{key}"
                 if path in path_map:
                     env_key, _ = path_map[path]
-                    if "api_key" in key and value and "***" in str(value):
+                    if ("api_key" in key or key == "token") and value and "***" in str(value):
                         continue
                     env_updates[env_key] = str(value)
                     updated_keys.append(path)
@@ -168,6 +168,88 @@ async def update_settings(body: dict):
             "need_restart": False,
         },
     }
+
+
+@router.post("/test-connection")
+async def test_connection(body: dict):
+    """Test connection for LLM, Embedding, or Milvus with current or provided config."""
+    service = body.get("service", "")
+    config = body.get("config", {})
+
+    if service == "llm":
+        return await _test_llm(config)
+    elif service == "embedding":
+        return await _test_embedding(config)
+    elif service == "milvus":
+        return await _test_milvus(config)
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown service: {service}")
+
+
+async def _test_llm(config: dict):
+    """Test LLM connection with a simple chat completion."""
+    from research_agent.llm.factory import create_llm_client
+
+    try:
+        # Temporarily override settings if config provided
+        client = create_llm_client()
+        messages = [{"role": "user", "content": "Hi"}]
+        response = await client.chat(messages, temperature=0.0, max_tokens=32)
+        return {
+            "success": True,
+            "data": {
+                "message": "LLM 连接成功",
+                "preview": response.strip()[:100],
+            },
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "data": {"message": f"LLM 连接失败: {e}"},
+        }
+
+
+async def _test_embedding(config: dict):
+    """Test embedding service by embedding a short text."""
+    from research_agent.retrieval.embedding import get_embedding_service
+
+    try:
+        emb_service = get_embedding_service()
+        result = emb_service.embed_query("测试文本")
+        dim = len(result) if hasattr(result, "__len__") else result.shape[0]
+        return {
+            "success": True,
+            "data": {
+                "message": f"嵌入模型连接成功，维度: {dim}",
+            },
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "data": {"message": f"嵌入模型连接失败: {e}"},
+        }
+
+
+async def _test_milvus(config: dict):
+    """Test Milvus / Zilliz Cloud connection."""
+    from research_agent.retrieval.vector_store import create_vector_store
+
+    try:
+        vs = create_vector_store()
+        chunk_count = vs.count
+        backend = app_settings.retrieval.vector_backend
+        label = "Zilliz Cloud" if app_settings.milvus.uri else "自建 Milvus"
+        return {
+            "success": True,
+            "data": {
+                "message": f"{label} 连接成功，已索引 {chunk_count} 个文档",
+            },
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "data": {"message": f"向量存储连接失败: {e}"},
+        }
 
 
 @router.get("/system-info")

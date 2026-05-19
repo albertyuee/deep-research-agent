@@ -18,10 +18,21 @@
       <n-alert v-if="store.successMsg" type="success" :bordered="false" class="mb-4">
         {{ store.successMsg }}
       </n-alert>
+      <n-alert v-if="testResult" :type="testResult.ok ? 'success' : 'error'" :bordered="false" class="mb-4" @close="testResult = null">
+        <template #header>
+          {{ testResult.ok ? '✓ 连接成功' : '✗ 连接失败' }}
+        </template>
+        {{ testResult.msg }}
+      </n-alert>
 
       <div v-if="store.settings">
         <!-- LLM -->
         <SettingsSection title="LLM 配置">
+          <template #actions>
+            <n-button size="tiny" :loading="testing.llm" @click="testLLM">
+              {{ testing.llm ? '测试中...' : '测试连接' }}
+            </n-button>
+          </template>
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="text-xs text-gray-500 mb-1 block">提供商</label>
@@ -48,6 +59,11 @@
 
         <!-- Embedding -->
         <SettingsSection title="嵌入模型">
+          <template #actions>
+            <n-button size="tiny" :loading="testing.embedding" @click="testEmbedding">
+              {{ testing.embedding ? '测试中...' : '测试连接' }}
+            </n-button>
+          </template>
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="text-xs text-gray-500 mb-1 block">模式</label>
@@ -91,6 +107,11 @@
 
         <!-- Vector Store -->
         <SettingsSection title="向量存储">
+          <template #actions>
+            <n-button size="tiny" :loading="testing.milvus" @click="testMilvus">
+              {{ testing.milvus ? '测试中...' : '测试连接' }}
+            </n-button>
+          </template>
           <div class="mb-4">
             <label class="text-xs text-gray-500 mb-2 block">存储后端</label>
             <n-radio-group v-model:value="form.retrieval.vector_backend">
@@ -148,6 +169,7 @@ import { ref, reactive, watch, onMounted } from 'vue'
 import { NIcon } from 'naive-ui'
 import { SaveOutline } from '@vicons/ionicons5'
 import { useSettingsStore } from '@/stores/settings'
+import { testConnection } from '@/api/settings'
 import SettingsSection from '@/components/settings/SettingsSection.vue'
 import SystemInfo from '@/components/settings/SystemInfo.vue'
 
@@ -158,6 +180,26 @@ const llmProviders = [
   { label: 'OpenAI', value: 'openai' },
   { label: 'Qwen (通义千问)', value: 'qwen' },
 ]
+
+const testing = reactive({ llm: false, embedding: false, milvus: false })
+const testResult = ref<{ type: string; ok: boolean; msg: string } | null>(null)
+
+async function runTest(service: 'llm' | 'embedding' | 'milvus') {
+  testing[service] = true
+  testResult.value = null
+  try {
+    const result = await testConnection(service)
+    testResult.value = { type: service, ok: result.success, msg: result.data.message }
+  } catch (e) {
+    testResult.value = { type: service, ok: false, msg: e instanceof Error ? e.message : '测试请求失败' }
+  } finally {
+    testing[service] = false
+  }
+}
+
+function testLLM() { runTest('llm') }
+function testEmbedding() { runTest('embedding') }
+function testMilvus() { runTest('milvus') }
 
 const form = reactive({
   llm: { provider: 'siliconflow', model: '', api_key: '', base_url: '', temperature: 0.3, max_tokens: 4096 },

@@ -72,3 +72,21 @@ export async function fetchSystemInfo(): Promise<SystemInfo> {
   const body = await resp.json()
   return body.data
 }
+
+export interface TestConnectionResult {
+  success: boolean
+  data: { message: string; preview?: string }
+}
+
+export async function testConnection(
+  service: 'llm' | 'embedding' | 'milvus',
+  config?: Record<string, unknown>,
+): Promise<TestConnectionResult> {
+  const resp = await fetch(`${BASE}/settings/test-connection`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ service, config: config || {} }),
+  })
+  const body = await resp.json()
+  return body
+}

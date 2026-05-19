@@ -3,6 +3,9 @@
     <template #header>
       <span class="font-semibold text-gray-700">{{ title }}</span>
     </template>
+    <template #header-extra>
+      <slot name="actions" />
+    </template>
     <slot />
   </n-card>
 </template>
