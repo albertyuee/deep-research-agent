@@ -4,7 +4,11 @@
       <SideNav />
       <n-layout-content>
         <div class="p-6 max-w-[1400px] mx-auto">
-          <router-view />
+          <router-view v-slot="{ Component }">
+            <keep-alive>
+              <component :is="Component" />
+            </keep-alive>
+          </router-view>
         </div>
       </n-layout-content>
     </n-layout>
