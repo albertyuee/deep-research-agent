@@ -136,6 +136,7 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
 
     # ── Local Retrieval ──
     local_results = []
+    local_failed = False
     if data_source in ("local", "both"):
         emit(task_id, "retrieval_start", {
             "step": step_idx + 1,
@@ -147,42 +148,61 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
             "progress": retr_progress,
         })
 
-        vector_store = state.get("_vector_store") or _get_vector_store()
-        bm25 = state.get("_bm25") or _get_bm25()
+        try:
+            vector_store = state.get("_vector_store") or _get_vector_store()
+            bm25 = state.get("_bm25") or _get_bm25()
 
-        if not bm25.is_indexed:
-            strategy = "semantic"  # fallback if BM25 not indexed
+            if not bm25.is_indexed:
+                strategy = "semantic"  # fallback if BM25 not indexed
 
-        hybrid = HybridRetriever(vector_store, bm25)
-        top_k = settings.retrieval.top_k * (2 ** retry_count)  # expand k on retry
+            hybrid = HybridRetriever(vector_store, bm25)
+            top_k = settings.retrieval.top_k * (2 ** retry_count)  # expand k on retry
 
-        if strategy == "semantic":
-            results = hybrid.search_vector_only(query, top_k=top_k)
-        elif strategy == "keyword":
-            results = hybrid.search_keyword_only(query, top_k=top_k)
-        else:
-            results = hybrid.search(query, top_k=top_k)
+            if strategy == "semantic":
+                results = hybrid.search_vector_only(query, top_k=top_k)
+            elif strategy == "keyword":
+                results = hybrid.search_keyword_only(query, top_k=top_k)
+            else:
+                results = hybrid.search(query, top_k=top_k)
 
-        local_results = [
-            {
-                "chunk_id": r.chunk_id,
-                "content": r.content,
-                "score": r.combined_score,
-                "vector_score": r.vector_score,
-                "bm25_score": r.bm25_score,
-                "metadata": {**r.metadata, "strategy": strategy, "source": "local"},
-            }
-            for r in results
-        ]
+            local_results = [
+                {
+                    "chunk_id": r.chunk_id,
+                    "content": r.content,
+                    "score": r.combined_score,
+                    "vector_score": r.vector_score,
+                    "bm25_score": r.bm25_score,
+                    "metadata": {**r.metadata, "strategy": strategy, "source": "local"},
+                }
+                for r in results
+            ]
 
-        emit(task_id, "retrieval_result", {
-            "step": step_idx + 1,
-            "result_count": len(local_results),
-            "top_score": local_results[0]["score"] if local_results else 0,
-            "top_preview": local_results[0]["content"][:200] if local_results else "",
-            "data_source": "local",
-            "progress": retr_progress + 0.10,
-        })
+            emit(task_id, "retrieval_result", {
+                "step": step_idx + 1,
+                "result_count": len(local_results),
+                "top_score": local_results[0]["score"] if local_results else 0,
+                "top_preview": local_results[0]["content"][:200] if local_results else "",
+                "data_source": "local",
+                "progress": retr_progress + 0.10,
+            })
+
+        except Exception as e:
+            _dbg(task_id, f"Local retrieval failed: {e}")
+            local_failed = True
+            if data_source == "both":
+                # Web search is available — continue with web results only
+                emit(task_id, "retrieval_result", {
+                    "step": step_idx + 1,
+                    "result_count": 0,
+                    "top_score": 0,
+                    "top_preview": "",
+                    "data_source": "local",
+                    "error": str(e),
+                    "progress": retr_progress + 0.10,
+                })
+            else:
+                # data_source == "local" — no web fallback, re-raise
+                raise
 
     # ── Web Search ──
     web_results = []
