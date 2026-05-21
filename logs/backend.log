@@ -1,9 +1,11 @@
 INFO:     Will watch for changes in these directories: ['/Users/albert/Desktop/Ai/测试/deep-research-agent']
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [17751] using WatchFiles
 /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/langgraph/cache/base/__init__.py:8: LangChainPendingDeprecationWarning: The default value of `allowed_objects` will change in a future version. Pass an explicit value (e.g., allowed_objects='messages' or allowed_objects='core') to suppress this warning.
   from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
-INFO:     Started server process [17754]
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [43143] using WatchFiles
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/langgraph/cache/base/__init__.py:8: LangChainPendingDeprecationWarning: The default value of `allowed_objects` will change in a future version. Pass an explicit value (e.g., allowed_objects='messages' or allowed_objects='core') to suppress this warning.
+  from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+INFO:     Started server process [43152]
 INFO:     Waiting for application startup.
+[MCP] Connected. Available tools: ['web_search']
 INFO:     Application startup complete.
-INFO:     127.0.0.1:60568 - "GET /health HTTP/1.1" 200 OK

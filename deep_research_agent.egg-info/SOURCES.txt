@@ -3,7 +3,10 @@ pyproject.toml
 backend/__init__.py
 backend/main.py
 backend/routers/__init__.py
+backend/routers/documents.py
+backend/routers/quick_search.py
 backend/routers/research.py
+backend/routers/settings.py
 backend/services/__init__.py
 backend/services/research_service.py
 config/__init__.py
@@ -16,8 +19,11 @@ deep_research_agent.egg-info/top_level.txt
 frontend/__init__.py
 frontend/app.py
 frontend/sse_client.py
+frontend/thread_worker.py
 frontend/components/__init__.py
 frontend/components/agent_progress.py
+frontend/components/debug_drawer.py
+frontend/components/empty_state.py
 frontend/components/report_view.py
 research_agent/__init__.py
 research_agent/graph.py
@@ -36,6 +42,7 @@ research_agent/planner/decomposer.py
 research_agent/planner/research_plan.py
 research_agent/retrieval/__init__.py
 research_agent/retrieval/bm25.py
+research_agent/retrieval/document_loader.py
 research_agent/retrieval/embedding.py
 research_agent/retrieval/hybrid.py
 research_agent/retrieval/rewriter.py
@@ -45,7 +52,11 @@ research_agent/synthesis/__init__.py
 research_agent/synthesis/aggregator.py
 research_agent/synthesis/citation.py
 research_agent/synthesis/report_generator.py
+research_agent/tools/__init__.py
+research_agent/tools/mcp_client.py
+research_agent/tools/web_search.py
 tests/test_critique.py
 tests/test_decomposition.py
 tests/test_graph.py
 tests/test_retrieval.py
+tests/test_web_search.py
