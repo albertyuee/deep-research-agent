@@ -37,6 +37,7 @@ def _get_embedding_settings() -> dict:
         "mode": app_settings.embedding.mode,
         "model": app_settings.embedding.model,
         "device": app_settings.embedding.device,
+        "dimension": app_settings.embedding.dimension,
         "api_base_url": app_settings.embedding.api_base_url,
         "api_key": _mask_key(app_settings.embedding.api_key),
     }
@@ -45,10 +46,20 @@ def _get_embedding_settings() -> dict:
 def _get_retrieval_settings() -> dict:
     return {
         "top_k": app_settings.retrieval.top_k,
+        "retry_top_k_multiplier": app_settings.retrieval.retry_top_k_multiplier,
         "max_retries": app_settings.retrieval.max_retries,
         "critique_threshold": app_settings.retrieval.critique_threshold,
         "rrf_k": app_settings.retrieval.rrf_k,
         "vector_backend": app_settings.retrieval.vector_backend,
+    }
+
+
+def _get_mcp_settings() -> dict:
+    return {
+        "web_search_enabled": app_settings.mcp.web_search_enabled,
+        "tavily_api_key": _mask_key(app_settings.mcp.tavily_api_key) if app_settings.mcp.tavily_api_key else "",
+        "tavily_max_results": app_settings.mcp.tavily_max_results,
+        "web_search_timeout": app_settings.mcp.web_search_timeout,
     }
 
 
@@ -111,6 +122,7 @@ async def get_settings():
             "embedding": _get_embedding_settings(),
             "retrieval": _get_retrieval_settings(),
             "milvus": _get_milvus_settings(),
+            "mcp": _get_mcp_settings(),
         },
     }
 
@@ -142,17 +154,22 @@ async def update_settings(body: dict):
         "milvus.token": ("MILVUS_TOKEN", str),
         "milvus.host": ("MILVUS_HOST", str),
         "milvus.port": ("MILVUS_PORT", str),
+        "milvus.collection_name": ("MILVUS_COLLECTION_NAME", str),
+        "mcp.web_search_enabled": ("MCP_WEB_SEARCH_ENABLED", lambda v: str(v).lower()),
+        "mcp.tavily_api_key": ("MCP_TAVILY_API_KEY", str),
+        "mcp.tavily_max_results": ("MCP_TAVILY_MAX_RESULTS", str),
+        "mcp.web_search_timeout": ("MCP_WEB_SEARCH_TIMEOUT", str),
     }
 
-    for section in ["llm", "embedding", "retrieval", "milvus"]:
+    for section in ["llm", "embedding", "retrieval", "milvus", "mcp"]:
         if section in body:
             for key, value in body[section].items():
                 path = f"{section}.{key}"
                 if path in path_map:
-                    env_key, _ = path_map[path]
+                    env_key, converter = path_map[path]
                     if ("api_key" in key or key == "token") and value and "***" in str(value):
                         continue
-                    env_updates[env_key] = str(value)
+                    env_updates[env_key] = converter(value)
                     updated_keys.append(path)
 
     if not env_updates:

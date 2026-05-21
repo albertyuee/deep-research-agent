@@ -14,11 +14,13 @@ export interface EmbeddingSettings {
   model: string
   api_key: string
   device: string
+  dimension: number
   api_base_url: string
 }
 
 export interface RetrievalSettings {
   top_k: number
+  retry_top_k_multiplier: number
   max_retries: number
   critique_threshold: number
   rrf_k: number
@@ -33,11 +35,19 @@ export interface MilvusSettings {
   collection_name: string
 }
 
+export interface MCPSettings {
+  web_search_enabled: boolean
+  tavily_api_key: string
+  tavily_max_results: number
+  web_search_timeout: number
+}
+
 export interface SettingsData {
   llm: LLMSettings
   embedding: EmbeddingSettings
   retrieval: RetrievalSettings
   milvus: MilvusSettings
+  mcp: MCPSettings
 }
 
 export interface SystemInfo {
@@ -54,7 +64,7 @@ export async function fetchSettings(): Promise<SettingsData> {
 }
 
 export async function updateSettings(
-  patch: Partial<{ llm: Partial<LLMSettings>; embedding: Partial<EmbeddingSettings>; retrieval: Partial<RetrievalSettings>; milvus: Partial<MilvusSettings> }>
+  patch: Partial<{ llm: Partial<LLMSettings>; embedding: Partial<EmbeddingSettings>; retrieval: Partial<RetrievalSettings>; milvus: Partial<MilvusSettings>; mcp: Partial<MCPSettings> }>
 ): Promise<{ updated: string[]; need_restart: boolean }> {
   const resp = await fetch(`${BASE}/settings`, {
     method: 'PATCH',

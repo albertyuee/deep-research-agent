@@ -70,6 +70,9 @@
                 <n-radio-button value="local">本地模型</n-radio-button>
               </n-radio-group>
             </FormField>
+            <FormField label="计算设备" v-if="form.embedding.mode === 'local'">
+              <n-select v-model:value="form.embedding.device" :options="[{ label: 'CPU', value: 'cpu' }, { label: 'CUDA (GPU)', value: 'cuda' }]" size="medium" />
+            </FormField>
             <FormField label="模型名称">
               <n-input v-model:value="form.embedding.model" size="medium" placeholder="BAAI/bge-large-zh-v1.5" />
             </FormField>
@@ -119,6 +122,9 @@
                   <n-input-number v-model:value="form.milvus.port" size="medium" :min="1" :max="65535" class="w-full" />
                 </FormField>
               </div>
+              <FormField label="Collection 名称" class="mt-3">
+                <n-input v-model:value="form.milvus.collection_name" size="medium" placeholder="research_docs" />
+              </FormField>
             </div>
           </div>
 
@@ -138,6 +144,28 @@
             </FormField>
             <FormField :label="`相似度阈值: ${form.retrieval.critique_threshold}`">
               <n-slider v-model:value="form.retrieval.critique_threshold" :min="0.3" :max="0.95" :step="0.05" />
+            </FormField>
+            <FormField :label="`RRF 融合参数 K: ${form.retrieval.rrf_k}`">
+              <n-slider v-model:value="form.retrieval.rrf_k" :min="0" :max="120" :step="1" />
+            </FormField>
+          </div>
+        </SettingsSection>
+
+        <!-- MCP Web Search -->
+        <SettingsSection title="MCP Web Search 网络搜索">
+          <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+            <FormField label="启用网络搜索" class="col-span-2">
+              <n-switch v-model:value="form.mcp.web_search_enabled" />
+              <span class="ml-3 text-sm text-gray-400">开启后研究时可检索互联网</span>
+            </FormField>
+            <FormField label="Tavily API Key" class="col-span-2">
+              <n-input v-model:value="form.mcp.tavily_api_key" type="password" show-password-on="click" size="medium" placeholder="在 tavily.com 注册获取（免费 1000次/月）" />
+            </FormField>
+            <FormField label="最大结果数">
+              <n-input-number v-model:value="form.mcp.tavily_max_results" size="medium" :min="1" :max="20" class="w-full" />
+            </FormField>
+            <FormField label="超时时间（秒）">
+              <n-input-number v-model:value="form.mcp.web_search_timeout" size="medium" :min="5" :max="120" class="w-full" />
             </FormField>
           </div>
         </SettingsSection>
@@ -200,6 +228,7 @@ const form = reactive({
   embedding: { mode: 'api', model: '', api_key: '', device: 'cpu', api_base_url: '' },
   retrieval: { top_k: 5, max_retries: 3, critique_threshold: 0.6, rrf_k: 60, vector_backend: 'chroma' },
   milvus: { uri: '', token: '', host: 'localhost', port: 19530, collection_name: 'research_docs' },
+  mcp: { web_search_enabled: false, tavily_api_key: '', tavily_max_results: 5, web_search_timeout: 30.0 },
 })
 
 watch(() => store.settings, (s) => {
@@ -208,6 +237,7 @@ watch(() => store.settings, (s) => {
     Object.assign(form.embedding, s.embedding)
     Object.assign(form.retrieval, s.retrieval)
     if ((s as any).milvus) Object.assign(form.milvus, (s as any).milvus)
+    if ((s as any).mcp) Object.assign(form.mcp, (s as any).mcp)
   }
 }, { immediate: true })
 
@@ -219,6 +249,7 @@ function onSave() {
     embedding: form.embedding,
     retrieval: form.retrieval,
     milvus: form.retrieval.vector_backend === 'milvus' ? form.milvus : undefined,
+    mcp: form.mcp,
   })
 }
 </script>
