@@ -46,7 +46,7 @@ def main() -> None:
         sys.exit(1)
 
     from research_agent.retrieval.document_loader import DocumentLoader
-    from research_agent.retrieval.vector_store import VectorStore
+    from research_agent.retrieval.vector_store import create_vector_store
     from research_agent.retrieval.bm25 import BM25Retriever
 
     # 1. Load all documents
@@ -66,11 +66,18 @@ def main() -> None:
         print(f"  {fname}: {len(f_chunks)} chunks")
 
     # 2. Index to vector store
-    print("\nIndexing to Chroma vector store...")
-    vs = VectorStore()
+    vs = create_vector_store()
+    print(f"  Backend: {vs.__class__.__name__}")
     chunk_ids = [c.chunk_id for c in chunks]
     texts = [c.content for c in chunks]
-    metadatas = [c.metadata for c in chunks]
+    # Add doc_title from file_name for citation display
+    metadatas = [
+        {
+            **c.metadata,
+            "doc_title": c.metadata.get("file_name", "").rsplit(".", 1)[0],
+        }
+        for c in chunks
+    ]
     vs.add_documents(chunk_ids, texts, metadatas)
     print(f"  Vector store: {vs.count} documents total")
 

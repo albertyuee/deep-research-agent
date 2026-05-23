@@ -132,10 +132,11 @@ async def _run_agent(task_id: str, query: str, enable_web_search: bool = False):
         print(f"[AGENT {task_id}] ainvoke DONE after {time.time()-t0:.1f}s", flush=True, file=sys.stderr)
 
         final_report = result.get("final_report", "")
+        raw_sources = result.get("sources", [])
         task_manager.set_result(task_id, {
             "report": final_report,
             "sub_queries": result.get("sub_queries", []),
-            "sources_count": len(result.get("sources", [])),
+            "sources": raw_sources,
             "low_confidence_steps": result.get("low_confidence_steps", []),
         })
         task_manager.update_status(task_id, TaskStatus.COMPLETED)

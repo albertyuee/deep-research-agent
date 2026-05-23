@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 
 from research_agent.retrieval.document_loader import DocumentLoader, SUPPORTED_EXTENSIONS
-from research_agent.retrieval.vector_store import VectorStore
+from research_agent.retrieval.vector_store import create_vector_store
 from research_agent.retrieval.bm25 import BM25Retriever
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -20,14 +20,14 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 UPLOAD_DIR = Path("data/uploads")
 FILES_JSON = UPLOAD_DIR / "files.json"
 
-_vector_store: VectorStore | None = None
+_vector_store = None
 _bm25: BM25Retriever | None = None
 
 
-def _get_vector_store() -> VectorStore:
+def _get_vector_store():
     global _vector_store
     if _vector_store is None:
-        _vector_store = VectorStore()
+        _vector_store = create_vector_store()
     return _vector_store
 
 
