@@ -151,6 +151,37 @@
           </div>
         </SettingsSection>
 
+        <!-- Rerank -->
+        <SettingsSection title="Rerank 二阶段精排">
+          <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+            <FormField label="启用 Rerank" class="col-span-2">
+              <n-switch v-model:value="form.rerank.enabled" />
+              <span class="ml-3 text-sm text-gray-400">开启后使用硅基流动 Qwen Reranker 对检索候选结果精排</span>
+            </FormField>
+            <FormField label="模型名称">
+              <n-input v-model:value="form.rerank.model" size="medium" placeholder="Qwen/Qwen3-Reranker-8B" />
+            </FormField>
+            <FormField label="API 地址">
+              <n-input v-model:value="form.rerank.base_url" size="medium" placeholder="https://api.siliconflow.cn/v1" />
+            </FormField>
+            <FormField label="API Key" class="col-span-2">
+              <n-input v-model:value="form.rerank.api_key" type="password" show-password-on="click" size="medium" placeholder="留空则复用 LLM/Embedding API Key" />
+            </FormField>
+            <FormField label="返回 Top-N">
+              <n-input-number v-model:value="form.rerank.top_n" size="medium" :min="1" :max="50" class="w-full" />
+            </FormField>
+            <FormField label="候选池倍数">
+              <n-input-number v-model:value="form.rerank.candidate_multiplier" size="medium" :min="1" :max="10" class="w-full" />
+            </FormField>
+            <FormField label="超时时间（秒）">
+              <n-input-number v-model:value="form.rerank.timeout" size="medium" :min="5" :max="120" class="w-full" />
+            </FormField>
+            <FormField label="排序指令" class="col-span-2">
+              <n-input v-model:value="form.rerank.instruction" type="textarea" size="medium" :autosize="{ minRows: 2, maxRows: 4 }" />
+            </FormField>
+          </div>
+        </SettingsSection>
+
         <!-- MCP Web Search -->
         <SettingsSection title="MCP Web Search 网络搜索">
           <div class="grid grid-cols-2 gap-x-6 gap-y-4">
@@ -227,6 +258,7 @@ const form = reactive({
   llm: { provider: 'siliconflow', model: '', api_key: '', base_url: '', temperature: 0.3, max_tokens: 4096 },
   embedding: { mode: 'api', model: '', api_key: '', device: 'cpu', api_base_url: '' },
   retrieval: { top_k: 5, max_retries: 3, critique_threshold: 0.6, rrf_k: 60, vector_backend: 'chroma' },
+  rerank: { enabled: false, provider: 'siliconflow', model: 'Qwen/Qwen3-Reranker-8B', api_key: '', base_url: 'https://api.siliconflow.cn/v1', top_n: 5, candidate_multiplier: 4, timeout: 30, instruction: '请根据查询内容判断文档与查询的相关性，并按相关性从高到低排序。' },
   milvus: { uri: '', token: '', host: 'localhost', port: 19530, collection_name: 'research_docs' },
   mcp: { web_search_enabled: false, tavily_api_key: '', tavily_max_results: 5, web_search_timeout: 30.0 },
 })
@@ -236,6 +268,7 @@ watch(() => store.settings, (s) => {
     Object.assign(form.llm, s.llm)
     Object.assign(form.embedding, s.embedding)
     Object.assign(form.retrieval, s.retrieval)
+    if ((s as any).rerank) Object.assign(form.rerank, (s as any).rerank)
     if ((s as any).milvus) Object.assign(form.milvus, (s as any).milvus)
     if ((s as any).mcp) Object.assign(form.mcp, (s as any).mcp)
   }
@@ -248,6 +281,7 @@ function onSave() {
     llm: form.llm,
     embedding: form.embedding,
     retrieval: form.retrieval,
+    rerank: form.rerank,
     milvus: form.retrieval.vector_backend === 'milvus' ? form.milvus : undefined,
     mcp: form.mcp,
   })

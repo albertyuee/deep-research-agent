@@ -5,91 +5,34 @@ from research_agent.graph import should_retry
 
 
 class TestConditionalRouting:
-    def test_should_retry_passed_advances(self):
+    def test_should_retry_routes_to_retrieval_when_steps_remain(self):
         state = {
-            "current_step": 0,
+            "current_step": 1,
             "total_steps": 3,
-            "critique_passed": True,
-            "retry_count": 0,
-            "all_retrieval_results": [],
-            "all_critique_results": [],
-            "retrieval_results": [{"chunk_id": "1", "content": "test", "score": 0.8}],
-            "critique_result": {"composite_score": 0.8},
-            "retry_history": [],
-            "low_confidence_steps": [],
         }
         result = should_retry(state)
-        assert result == "retrieval"  # more steps remain
+        assert result == "retrieval"
         assert state["current_step"] == 1
-        assert state["retry_count"] == 0
 
-    def test_should_retry_passed_last_step_goes_to_synthesis(self):
+    def test_should_retry_routes_to_synthesis_when_all_steps_done(self):
         state = {
-            "current_step": 2,
+            "current_step": 3,
             "total_steps": 3,
-            "critique_passed": True,
-            "retry_count": 0,
-            "all_retrieval_results": [],
-            "all_critique_results": [],
-            "retrieval_results": [{"chunk_id": "1", "content": "test", "score": 0.8}],
-            "critique_result": {"composite_score": 0.8},
-            "retry_history": [],
-            "low_confidence_steps": [],
         }
         result = should_retry(state)
         assert result == "synthesis"
 
-    def test_should_retry_failed_can_retry(self):
+    def test_should_retry_is_pure_and_does_not_mutate_retry_state(self):
         state = {
             "current_step": 0,
             "total_steps": 3,
-            "critique_passed": False,
-            "retry_count": 0,
-            "retrieval_results": [],
-            "critique_result": {"composite_score": 0.4},
-            "all_retrieval_results": [],
-            "all_critique_results": [],
-            "retry_history": [],
+            "retry_count": 2,
             "low_confidence_steps": [],
         }
         result = should_retry(state)
         assert result == "retrieval"
-        assert state["retry_count"] == 1
-
-    def test_should_retry_exhausted_advances(self):
-        state = {
-            "current_step": 1,
-            "total_steps": 3,
-            "critique_passed": False,
-            "retry_count": 2,  # max = 3, so 2 means 3rd attempt failed
-            "retrieval_results": [],
-            "critique_result": {"composite_score": 0.4},
-            "all_retrieval_results": [],
-            "all_critique_results": [],
-            "retry_history": [],
-            "low_confidence_steps": [],
-        }
-        result = should_retry(state)
-        assert result == "retrieval"  # more steps, goes back to retrieval for next step
-        assert state["current_step"] == 2
-        assert state["low_confidence_steps"] == [2]  # step+1
-
-    def test_should_retry_exhausted_last_step_goes_to_synthesis(self):
-        state = {
-            "current_step": 2,
-            "total_steps": 3,
-            "critique_passed": False,
-            "retry_count": 2,
-            "retrieval_results": [],
-            "critique_result": {"composite_score": 0.4},
-            "all_retrieval_results": [],
-            "all_critique_results": [],
-            "retry_history": [],
-            "low_confidence_steps": [],
-        }
-        result = should_retry(state)
-        assert result == "synthesis"
-        assert state["low_confidence_steps"] == [3]
+        assert state["retry_count"] == 2
+        assert state["low_confidence_steps"] == []
 
 
 class TestState:

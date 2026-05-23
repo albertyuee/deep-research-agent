@@ -172,6 +172,7 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
                     "score": r.combined_score,
                     "vector_score": r.vector_score,
                     "bm25_score": r.bm25_score,
+                    "rerank_score": r.rerank_score,
                     "metadata": {**r.metadata, "strategy": strategy, "source_type": "local"},
                 }
                 for r in results

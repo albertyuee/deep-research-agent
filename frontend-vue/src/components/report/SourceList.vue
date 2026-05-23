@@ -9,22 +9,22 @@
       <div v-for="src in webSources" :key="src.chunk_id" class="source-card web-source">
         <div class="flex items-center gap-2 justify-between flex-wrap">
           <a
-            v-if="src.metadata?.url"
-            :href="src.metadata.url"
+            v-if="metadataText(src.metadata?.url)"
+            :href="metadataText(src.metadata?.url)"
             target="_blank"
             rel="noopener noreferrer"
             class="font-semibold text-sm text-blue-700 hover:underline"
           >
-            {{ src.metadata?.title || src.metadata?.url }}
+            {{ metadataText(src.metadata?.title) || metadataText(src.metadata?.url) }}
             <span class="text-xs text-blue-400 ml-1">↗</span>
           </a>
           <span v-else class="font-semibold text-sm text-gray-800">
-            {{ src.metadata?.title || src.metadata?.source || src.chunk_id }}
+            {{ metadataText(src.metadata?.title) || metadataText(src.metadata?.source) || src.chunk_id }}
           </span>
           <ScoreBadge :score="src.score" />
         </div>
         <p class="text-xs text-gray-400 mt-1 truncate">
-          {{ src.metadata?.url || '' }}
+          {{ metadataText(src.metadata?.url) }}
         </p>
         <p class="text-xs text-gray-500 mt-1.5 line-clamp-2">
           {{ src.content?.slice(0, 200) }}{{ src.content?.length > 200 ? '...' : '' }}
@@ -38,12 +38,12 @@
       <div v-for="src in localSources" :key="src.chunk_id" class="source-card local-source">
         <div class="flex items-center gap-2 justify-between flex-wrap">
           <span class="font-semibold text-sm text-gray-800">
-            {{ src.metadata?.file_name || src.metadata?.source_path || src.metadata?.source || src.chunk_id }}
+            {{ metadataText(src.metadata?.file_name) || metadataText(src.metadata?.source_path) || metadataText(src.metadata?.source) || src.chunk_id }}
           </span>
           <div class="flex items-center gap-2">
             <ScoreBadge :score="src.score" />
             <span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
-              {{ src.metadata?.strategy || 'unknown' }}
+              {{ metadataText(src.metadata?.strategy) || 'unknown' }}
             </span>
           </div>
         </div>
@@ -74,12 +74,18 @@ const uniqueSources = computed(() => {
   })
 })
 
+function metadataText(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (value == null) return ''
+  return String(value)
+}
+
 const webSources = computed(() =>
-  uniqueSources.value.filter(s => s.metadata?.source_type === 'web')
+  uniqueSources.value.filter(s => metadataText(s.metadata?.source_type) === 'web')
 )
 
 const localSources = computed(() =>
-  uniqueSources.value.filter(s => s.metadata?.source !== 'web')
+  uniqueSources.value.filter(s => metadataText(s.metadata?.source_type) !== 'web')
 )
 </script>
 

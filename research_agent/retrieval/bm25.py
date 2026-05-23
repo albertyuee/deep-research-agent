@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import NamedTuple
 
+import jieba
 import numpy as np
 from rank_bm25 import BM25Okapi
 
@@ -24,12 +25,14 @@ class BM25Retriever:
 
     @staticmethod
     def _tokenize(text: str) -> list[str]:
-        """Simple Chinese/English tokenizer."""
-        # Split on Chinese characters and keep them as individual tokens
+        """Tokenize Chinese with jieba, and keep English words/numbers."""
         tokens = []
-        # Match Chinese chars, English words, and numbers
-        for match in re.finditer(r"[\u4e00-\u9fff]|[a-zA-Z]+|\d+", text.lower()):
-            tokens.append(match.group())
+        for match in re.finditer(r"[\u4e00-\u9fff]+|[a-zA-Z]+|\d+", text.lower()):
+            segment = match.group()
+            if re.fullmatch(r"[\u4e00-\u9fff]+", segment):
+                tokens.extend(token.strip() for token in jieba.lcut(segment) if token.strip())
+            else:
+                tokens.append(segment)
         return tokens
 
     def index_documents(

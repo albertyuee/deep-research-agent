@@ -35,6 +35,18 @@ export interface MilvusSettings {
   collection_name: string
 }
 
+export interface RerankSettings {
+  enabled: boolean
+  provider: string
+  model: string
+  api_key: string
+  base_url: string
+  top_n: number
+  candidate_multiplier: number
+  timeout: number
+  instruction: string
+}
+
 export interface MCPSettings {
   web_search_enabled: boolean
   tavily_api_key: string
@@ -46,6 +58,7 @@ export interface SettingsData {
   llm: LLMSettings
   embedding: EmbeddingSettings
   retrieval: RetrievalSettings
+  rerank: RerankSettings
   milvus: MilvusSettings
   mcp: MCPSettings
 }
@@ -64,7 +77,7 @@ export async function fetchSettings(): Promise<SettingsData> {
 }
 
 export async function updateSettings(
-  patch: Partial<{ llm: Partial<LLMSettings>; embedding: Partial<EmbeddingSettings>; retrieval: Partial<RetrievalSettings>; milvus: Partial<MilvusSettings>; mcp: Partial<MCPSettings> }>
+  patch: Partial<{ llm: Partial<LLMSettings>; embedding: Partial<EmbeddingSettings>; retrieval: Partial<RetrievalSettings>; rerank: Partial<RerankSettings>; milvus: Partial<MilvusSettings>; mcp: Partial<MCPSettings> }>
 ): Promise<{ updated: string[]; need_restart: boolean }> {
   const resp = await fetch(`${BASE}/settings`, {
     method: 'PATCH',

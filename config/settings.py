@@ -90,6 +90,24 @@ class RetrievalSettings(BaseSettings):
     vector_backend: Literal["milvus", "chroma"] = "chroma"
 
 
+class RerankSettings(BaseSettings):
+    model_config = {
+        "env_prefix": "RERANK_",
+        "env_file": Path(__file__).parent / ".env",
+        "extra": "ignore"
+    }
+
+    enabled: bool = False
+    provider: Literal["siliconflow"] = "siliconflow"
+    model: str = "Qwen/Qwen3-Reranker-8B"
+    api_key: str = ""
+    base_url: str = "https://api.siliconflow.cn/v1"
+    instruction: str = "请根据查询内容判断文档与查询的相关性，并按相关性从高到低排序。"
+    top_n: int = 5
+    candidate_multiplier: int = 4
+    timeout: float = 30.0
+
+
 class MCPSettings(BaseSettings):
     model_config = {
         "env_prefix": "MCP_",
@@ -114,6 +132,7 @@ class Settings(BaseSettings):
     milvus: MilvusSettings = Field(default_factory=MilvusSettings)
     chroma: ChromaSettings = Field(default_factory=ChromaSettings)
     retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
+    rerank: RerankSettings = Field(default_factory=RerankSettings)
     mcp: MCPSettings = Field(default_factory=MCPSettings)
 
     project_root: Path = Field(default_factory=lambda: Path(__file__).parent.parent)

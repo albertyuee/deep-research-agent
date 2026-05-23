@@ -20,7 +20,8 @@
 用户问题
   → 🔍 自主拆解为 2-5 个子问题
   → 🧠 为每个子问题选择最优检索策略（semantic / keyword / hybrid）
-  → 🔎 检索后自评质量（相关性 + 完整性双维度评分）
+  → 🔎 向量/BM25/RRF 粗排，可选 Rerank 二阶段精排
+  → 🧪 检索后自评质量（相关性 + 完整性双维度评分）
   → 🔄 不够好就改写查询重新搜索（最多 3 次，策略逐级升级）
   → 📝 聚合多源信息，生成带引用的结构化报告
 ```
@@ -54,7 +55,8 @@
 │   │              │     │                  │   │ 重试     │
 │   │ · 拆解子问题  │     │ · 策略选择        │   │ (最多3次) │
 │   │ · 生成研究计划│     │ · 向量/BM25/混合  │   │         │
-│   └──────────────┘     │ · 查询改写        │   │         │
+│   └──────────────┘     │ · RRF/Rerank精排  │   │         │
+│                        │ · 查询改写        │   │         │
 │                        └────────┬────────┘   │         │
 │                                 │            │         │
 │                                 ▼            │         │
@@ -112,8 +114,9 @@ Decomposition → Retrieval → Critique → should_retry?
 | **LLM**       | 硅基流动 / 通义千问 / OpenAI             | 多 Provider 统一封装       |
 | **Embedding** | BAAI/bge-large-zh-v1.5（硅基流动 API） | 1024 维向量，支持本地/API 双模式 |
 | **向量存储**      | Chroma（默认）/ Milvus               | 持久化 + 余弦相似度           |
-| **关键词检索**     | BM25（rank-bm25）                  | 互补语义检索                |
+| **关键词检索**     | BM25（rank-bm25）+ jieba            | 中文词级分词，互补语义检索      |
 | **混合检索**      | RRF 融合                           | 向量 + BM25 结果重排序       |
+| **二阶段精排**    | SiliconFlow Rerank                 | 可选 Qwen/Qwen3-Reranker-8B |
 | **后端**        | FastAPI + SSE                    | 异步 + 流式推送             |
 | **前端**        | Vue 3 + Vite + Naive UI         | Agent 思考过程实时可视化       |
 | **配置**        | pydantic-settings + .env         | 类型安全的环境变量管理           |
@@ -158,7 +161,7 @@ vim config/.env
 ```env
 # LLM 配置
 LLM_PROVIDER=siliconflow
-LLM_MODEL=deepseek-ai/DeepSeek-V4-Flash
+LLM_MODEL=Qwen/Qwen3-8B
 LLM_API_KEY=sk-your-siliconflow-api-key-here  # 替换为你的真实 key
 LLM_BASE_URL=https://api.siliconflow.cn/v1
 
@@ -166,7 +169,16 @@ LLM_BASE_URL=https://api.siliconflow.cn/v1
 EMBEDDING_MODE=api  # local=本地模型，api=调用API
 EMBEDDING_MODEL=BAAI/bge-large-zh-v1.5
 EMBEDDING_API_BASE_URL=https://api.siliconflow.cn/v1
-EMBEDDING_API_KEY=sk-your-siliconflow-api-key-here  # 与LLM共用同一个key
+EMBEDDING_API_KEY=sk-your-siliconflow-api-key-here  # 与 LLM 可共用同一个 key
+
+# Rerank 二阶段精排（可选，默认关闭以避免额外费用）
+RERANK_ENABLED=false
+RERANK_MODEL=Qwen/Qwen3-Reranker-8B
+RERANK_BASE_URL=https://api.siliconflow.cn/v1
+# RERANK_API_KEY 留空时复用 LLM_API_KEY，其次复用 EMBEDDING_API_KEY
+RERANK_API_KEY=
+RERANK_TOP_N=5
+RERANK_CANDIDATE_MULTIPLIER=4
 ```
 
 > **Embedding 模式说明**：
@@ -178,7 +190,7 @@ EMBEDDING_API_KEY=sk-your-siliconflow-api-key-here  # 与LLM共用同一个key
 >
 > 1. 访问 [cloud.siliconflow.cn](https://cloud.siliconflow.cn) 注册
 > 2. 进入控制台 → API 密钥 → 新建密钥
-> 3. 新用户赠送 2000 万 token，LLM 和 Embedding 共用同一个 Key
+> 3. 新用户赠送 2000 万 token，LLM、Embedding 和 Rerank 可共用同一个 Key
 
 ### 4. 索引文档
 
@@ -186,7 +198,7 @@ EMBEDDING_API_KEY=sk-your-siliconflow-api-key-here  # 与LLM共用同一个key
 
 **方式一：Web UI（推荐）**
 
-启动后访问 `http://localhost:5173/documents`，上传 PDF / Word / Markdown / TXT 文件，自动分块、嵌入、索引，立即可被检索。
+启动后访问 `http://localhost:5173/documents`，上传 PDF / Word / Markdown / TXT 文件，自动分块、嵌入、索引，立即可被检索。上传接口默认限制单文件最大 `20 MB`，并会对文件名做安全清理，避免路径穿越和特殊字符导致的保存问题。
 
 **方式二：手动索引**
 
@@ -252,9 +264,9 @@ API 文档：[http://localhost:8000/docs](http://localhost:8000/docs)
 
 **快速检索**：即时问答，AI 摘要 + 来源引用，秒级响应。适合快速查找和简单问题。
 
-**资料管理**：上传 PDF/Word/Markdown/TXT 文档，自动索引入知识库。
+**资料管理**：上传 PDF/Word/Markdown/TXT 文档，自动索引入知识库，单文件默认最大 `20 MB`。
 
-**系统设置**：配置 LLM 提供商、嵌入模型、检索参数，支持热重载。
+**系统设置**：配置 LLM 提供商、嵌入模型、检索参数、Rerank 精排和 Web Search，支持热重载。
 
 ---
 
@@ -274,8 +286,9 @@ deep-research-agent/
 │   ├── retrieval/                # 自适应检索
 │   │   ├── embedding.py          # Embedding 服务（支持本地/API双模式）
 │   │   ├── vector_store.py       # Chroma 向量存储与检索
-│   │   ├── bm25.py               # BM25 关键词检索
-│   │   ├── hybrid.py             # 混合检索 + RRF 融合
+│   │   ├── bm25.py               # BM25 关键词检索（jieba 中文分词）
+│   │   ├── hybrid.py             # 混合检索 + RRF 融合 + 可选 Rerank
+│   │   ├── reranker.py           # SiliconFlow Rerank 二阶段精排
 │   │   ├── strategy.py           # Agent 自主选择检索策略
 │   │   └── rewriter.py           # 查询改写（扩展/收缩/切换）
 │   ├── critique/                 # 检索质量评估
@@ -302,7 +315,7 @@ deep-research-agent/
 │   │   │   ├── ResearchPage.vue  # 深度研究主页
 │   │   │   ├── QuickSearchPage.vue  # 快速检索（对话式）
 │   │   │   ├── DocumentsPage.vue # 资料管理（上传/预览/删除）
-│   │   │   └── SettingsPage.vue  # 系统设置（LLM/嵌入/检索配置）
+│   │   │   └── SettingsPage.vue  # 系统设置（LLM/嵌入/检索/Rerank配置）
 │   │   ├── components/           # UI 组件
 │   │   ├── stores/               # Pinia 状态管理
 │   │   ├── composables/          # SSE 连接管理等
@@ -319,10 +332,11 @@ deep-research-agent/
 │   │   └── rag_technology_overview.md
 │   ├── chroma_db/                # ChromaDB 持久化数据
 │   └── uploads/                  # 用户上传的文件
-├── tests/                        # 测试（26 个用例）
+├── tests/                        # 测试（29 个用例）
 │   ├── test_decomposition.py     # 查询拆解
-│   ├── test_retrieval.py         # 检索模块
+│   ├── test_retrieval.py         # 检索模块（BM25/jieba/Rerank）
 │   ├── test_critique.py          # 质量评估 + 重试控制
+│   ├── test_web_search.py        # MCP Web Search 归一化
 │   └── test_graph.py             # Agent 状态流转集成测试
 ├── openspec/                     # OpenSpec 规范驱动开发
 │   ├── project.md                # 项目上下文
@@ -399,17 +413,17 @@ curl -X POST http://localhost:8000/api/v1/quick-search \
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/v1/documents` | 文件列表（含 ChromaDB 已索引文档） |
-| POST | `/api/v1/documents/upload` | 上传文档（multipart），自动分块+嵌入+索引 |
+| POST | `/api/v1/documents/upload` | 上传文档（multipart），默认最大 20MB，安全文件名处理，自动分块+嵌入+索引 |
 | DELETE | `/api/v1/documents/{id}` | 删除文档及所有关联 chunks |
 
-支持 PDF/DOCX/MD/TXT，上传后立即可被深度研究和快速检索使用。
+支持 PDF/DOCX/MD/TXT，上传后立即可被深度研究和快速检索使用。文件保存时会清理路径分隔符、控制字符和异常符号，防止用户上传文件名影响服务器路径。
 
 ### Settings API
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/v1/settings` | 读取当前配置（API Key 掩码） |
-| PATCH | `/api/v1/settings` | 部分更新配置，写 .env 并热重载 |
+| PATCH | `/api/v1/settings` | 部分更新配置，写 .env 并热重载（含 LLM/Embedding/Retrieval/Rerank/MCP） |
 | GET | `/api/v1/settings/system-info` | ChromaDB 统计 + 版本信息 |
 
 ### GET /api/v1/research/{task_id}
@@ -434,10 +448,16 @@ curl -X POST http://localhost:8000/api/v1/quick-search \
 
 ---
 
+## 当前增强能力
+
+- **中文关键词检索**：BM25 已接入 `jieba` 中文词级分词，提升中文关键词匹配效果。
+- **Rerank 二阶段精排**：支持硅基流动 `Qwen/Qwen3-Reranker-8B`，默认关闭；开启后先召回候选结果，再按相关性精排。
+- **上传安全**：文档上传默认限制 `20 MB`，并清理上传文件名，避免路径穿越和特殊字符导致的保存问题。
+
 ## 后续规划
 
 - **V2**：Knowledge Graph 构建 + 多跳推理（NetworkX → Neo4j）
-- **V3**：MCP 多源接入（Web Search, Notion, GitHub, 数据库）
+- **V3**：MCP 多源接入（Notion, GitHub, 数据库）
 - **V4**：Agent 记忆系统（短期对话 + 长期用户画像）+ 多轮对话
 - **V5**：RAGAS 评估看板 + LangFuse 全链路追踪
 
@@ -446,9 +466,17 @@ curl -X POST http://localhost:8000/api/v1/quick-search \
 ## 运行测试
 
 ```bash
-pytest tests/ -v
-# 26 passed
+PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests -q
+# 29 passed
 ```
+
+前端构建检查：
+
+```bash
+cd frontend-vue && npm run build
+```
+
+真实接口连通性已验证：LLM、Embedding API、SiliconFlow `Qwen/Qwen3-Reranker-8B` Rerank 均可正常调用。
 
 ---
 

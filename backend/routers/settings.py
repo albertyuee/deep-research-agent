@@ -54,6 +54,20 @@ def _get_retrieval_settings() -> dict:
     }
 
 
+def _get_rerank_settings() -> dict:
+    return {
+        "enabled": app_settings.rerank.enabled,
+        "provider": app_settings.rerank.provider,
+        "model": app_settings.rerank.model,
+        "api_key": _mask_key(app_settings.rerank.api_key) if app_settings.rerank.api_key else "",
+        "base_url": app_settings.rerank.base_url,
+        "top_n": app_settings.rerank.top_n,
+        "candidate_multiplier": app_settings.rerank.candidate_multiplier,
+        "timeout": app_settings.rerank.timeout,
+        "instruction": app_settings.rerank.instruction,
+    }
+
+
 def _get_mcp_settings() -> dict:
     return {
         "web_search_enabled": app_settings.mcp.web_search_enabled,
@@ -121,6 +135,7 @@ async def get_settings():
             "llm": _get_llm_settings(),
             "embedding": _get_embedding_settings(),
             "retrieval": _get_retrieval_settings(),
+            "rerank": _get_rerank_settings(),
             "milvus": _get_milvus_settings(),
             "mcp": _get_mcp_settings(),
         },
@@ -150,6 +165,15 @@ async def update_settings(body: dict):
         "retrieval.critique_threshold": ("RETRIEVAL_CRITIQUE_THRESHOLD", str),
         "retrieval.rrf_k": ("RETRIEVAL_RRF_K", str),
         "retrieval.vector_backend": ("RETRIEVAL_VECTOR_BACKEND", str),
+        "rerank.enabled": ("RERANK_ENABLED", lambda v: str(v).lower()),
+        "rerank.provider": ("RERANK_PROVIDER", str),
+        "rerank.model": ("RERANK_MODEL", str),
+        "rerank.api_key": ("RERANK_API_KEY", str),
+        "rerank.base_url": ("RERANK_BASE_URL", str),
+        "rerank.top_n": ("RERANK_TOP_N", str),
+        "rerank.candidate_multiplier": ("RERANK_CANDIDATE_MULTIPLIER", str),
+        "rerank.timeout": ("RERANK_TIMEOUT", str),
+        "rerank.instruction": ("RERANK_INSTRUCTION", str),
         "milvus.uri": ("MILVUS_URI", str),
         "milvus.token": ("MILVUS_TOKEN", str),
         "milvus.host": ("MILVUS_HOST", str),
@@ -161,7 +185,7 @@ async def update_settings(body: dict):
         "mcp.web_search_timeout": ("MCP_WEB_SEARCH_TIMEOUT", str),
     }
 
-    for section in ["llm", "embedding", "retrieval", "milvus", "mcp"]:
+    for section in ["llm", "embedding", "retrieval", "rerank", "milvus", "mcp"]:
         if section in body:
             for key, value in body[section].items():
                 path = f"{section}.{key}"

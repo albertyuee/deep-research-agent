@@ -54,6 +54,7 @@ async def search_web(query: str, max_results: int | None = None) -> list[dict]:
                 "vector_score": None,
                 "bm25_score": None,
                 "metadata": {
+                    "source": "web",
                     "source_type": "web",
                     "url": r.get("url", ""),
                     "title": r.get("title", ""),

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
+import unicodedata
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
@@ -19,6 +21,9 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 UPLOAD_DIR = Path("data/uploads")
 FILES_JSON = UPLOAD_DIR / "files.json"
+MAX_UPLOAD_SIZE_BYTES = 20 * 1024 * 1024
+UPLOAD_READ_CHUNK_SIZE = 1024 * 1024
+MAX_SAFE_FILENAME_LENGTH = 120
 
 _vector_store = None
 _bm25: BM25Retriever | None = None
@@ -49,6 +54,45 @@ def _write_files_meta(data: dict) -> None:
     FILES_JSON.parent.mkdir(parents=True, exist_ok=True)
     with open(FILES_JSON, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def _sanitize_filename(filename: str) -> str:
+    """Return a storage-safe filename derived from user input."""
+    name = PureWindowsPath(PurePosixPath(filename).name).name
+    name = unicodedata.normalize("NFKC", name).strip()
+    name = re.sub(r"[\x00-\x1f\x7f]", "", name)
+    name = re.sub(r"[^\w.\-]+", "_", name, flags=re.UNICODE)
+    name = name.strip(" ._-")
+
+    if not name:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    path = Path(name)
+    suffix = path.suffix
+    stem = path.stem.strip(" ._-")
+    if not stem or not suffix:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    max_stem_length = MAX_SAFE_FILENAME_LENGTH - len(suffix)
+    if max_stem_length <= 0:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    if len(stem) > max_stem_length:
+        stem = stem[:max_stem_length].rstrip(" ._-")
+
+    return f"{stem}{suffix.lower()}"
+
+
+async def _save_upload_with_limit(file: UploadFile, destination: Path) -> int:
+    """Save upload in chunks and reject files exceeding MAX_UPLOAD_SIZE_BYTES."""
+    total_size = 0
+    with open(destination, "wb") as f:
+        while chunk := await file.read(UPLOAD_READ_CHUNK_SIZE):
+            total_size += len(chunk)
+            if total_size > MAX_UPLOAD_SIZE_BYTES:
+                max_mb = MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)
+                raise HTTPException(status_code=413, detail=f"File too large. Max upload size is {max_mb} MB")
+            f.write(chunk)
+    return total_size
 
 
 class DocumentItem(BaseModel):
@@ -134,7 +178,8 @@ async def upload_document(file: UploadFile = File(...)):
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
-    ext = Path(file.filename).suffix.lower()
+    safe_filename = _sanitize_filename(file.filename)
+    ext = Path(safe_filename).suffix.lower()
     if ext not in SUPPORTED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
@@ -145,12 +190,10 @@ async def upload_document(file: UploadFile = File(...)):
     file_dir = UPLOAD_DIR / file_id
     file_dir.mkdir(parents=True, exist_ok=True)
 
-    temp_path = file_dir / file.filename
-    content = await file.read()
+    temp_path = file_dir / safe_filename
 
     try:
-        with open(temp_path, "wb") as f:
-            f.write(content)
+        file_size = await _save_upload_with_limit(file, temp_path)
 
         loader = DocumentLoader()
         chunks = loader.load_file(temp_path)
@@ -164,8 +207,8 @@ async def upload_document(file: UploadFile = File(...)):
         chunk_metas = [
             {
                 **c.metadata,
-                "doc_title": file.filename.rsplit(".", 1)[0],
-                "source": file.filename,
+                "doc_title": Path(safe_filename).stem,
+                "source": safe_filename,
                 "upload_id": file_id,
             }
             for c in chunks
@@ -189,8 +232,8 @@ async def upload_document(file: UploadFile = File(...)):
         meta = _read_files_meta()
         meta["files"].append({
             "id": file_id,
-            "name": file.filename,
-            "size": len(content),
+            "name": safe_filename,
+            "size": file_size,
             "chunks": len(chunks),
             "status": "ready",
             "uploaded_at": datetime.now(timezone.utc).isoformat(),
@@ -201,7 +244,7 @@ async def upload_document(file: UploadFile = File(...)):
             success=True,
             data={
                 "file_id": file_id,
-                "name": file.filename,
+                "name": safe_filename,
                 "chunks": len(chunks),
                 "status": "ready",
             },

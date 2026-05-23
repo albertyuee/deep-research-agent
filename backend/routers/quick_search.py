@@ -67,6 +67,7 @@ async def quick_search(req: QuickSearchRequest):
             "chunk_id": r.chunk_id,
             "content": r.content,
             "score": r.combined_score,
+            "rerank_score": r.rerank_score,
             "metadata": r.metadata,
         }
         for r in results

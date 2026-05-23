@@ -1,15 +1,24 @@
 """Tests for retrieval modules."""
 
 import pytest
+from typing import NamedTuple
+
 from research_agent.retrieval.bm25 import BM25Retriever
+from research_agent.retrieval.reranker import RerankResult
+
+
+class FakeRetrievalResult(NamedTuple):
+    chunk_id: str
+    content: str
+    score: float
+    metadata: dict
 
 
 class TestBM25Retriever:
     def test_tokenize_chinese(self):
         tokens = BM25Retriever._tokenize("人工智能在医疗中的应用")
-        assert "人工智能" not in tokens  # split per character, not word
-        assert "医" in tokens
-        assert "疗" in tokens
+        assert "人工智能" in tokens
+        assert "医疗" in tokens
 
     def test_tokenize_mixed(self):
         tokens = BM25Retriever._tokenize("IL-6 抑制剂 2023年临床试验")
@@ -54,3 +63,32 @@ class TestHybridRetrieval:
             combined_score=0.76,
         )
         assert r.combined_score > r.bm25_score
+
+    def test_hybrid_search_applies_reranker(self):
+        from research_agent.retrieval.hybrid import HybridRetriever
+
+        class FakeVectorStore:
+            def search(self, query, top_k=None):
+                return [
+                    FakeRetrievalResult("1", "普通机器学习介绍", 0.9, {}),
+                    FakeRetrievalResult("2", "医疗影像 AI 诊断", 0.8, {}),
+                ]
+
+        class FakeBM25:
+            is_indexed = False
+
+        class FakeReranker:
+            is_enabled = True
+
+            def rerank(self, query, documents, top_n=None):
+                return [
+                    RerankResult(index=1, relevance_score=0.95),
+                    RerankResult(index=0, relevance_score=0.30),
+                ]
+
+        retriever = HybridRetriever(FakeVectorStore(), FakeBM25(), reranker=FakeReranker())
+        results = retriever.search("医疗影像", top_k=1)
+
+        assert results[0].chunk_id == "2"
+        assert results[0].rerank_score == 0.95
+        assert results[0].metadata["pre_rerank_score"] > 0
