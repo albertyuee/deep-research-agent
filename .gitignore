@@ -32,6 +32,9 @@ data/chroma_db/
 # User uploaded files
 data/uploads/
 
+# Local-only test code
+本地代码测试/
+
 # Superpowers brainstorming artifacts
 .superpowers/
 
