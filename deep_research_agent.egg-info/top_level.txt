@@ -1,5 +1,0 @@
-backend
-config
-frontend
-frontend-vue
-research_agent
