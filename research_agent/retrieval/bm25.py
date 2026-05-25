@@ -45,7 +45,7 @@ class BM25Retriever:
             for id_, text, meta in zip(ids, texts, metadatas)
         ]
         self._tokenized_corpus = [self._tokenize(text) for text in texts]
-        self._bm25 = BM25Okapi(self._tokenized_corpus)
+        self._bm25 = BM25Okapi(self._tokenized_corpus) if self._tokenized_corpus else None
 
     def search(self, query: str, top_k: int = 5) -> list[BM25Result]:
         """Search using BM25."""

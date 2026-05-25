@@ -47,6 +47,16 @@ class TestBM25Retriever:
         results = bm25.search("anything")
         assert results == []
 
+    def test_index_empty_corpus_clears_index(self):
+        bm25 = BM25Retriever()
+        bm25.index_documents(["1"], ["人工智能医疗影像诊断系统"])
+        assert bm25.is_indexed
+
+        bm25.index_documents([], [], [])
+
+        assert not bm25.is_indexed
+        assert bm25.search("医疗") == []
+
     def test_is_indexed_before_index(self):
         bm25 = BM25Retriever()
         assert not bm25.is_indexed

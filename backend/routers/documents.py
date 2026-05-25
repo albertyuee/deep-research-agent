@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import shutil
 import unicodedata
@@ -18,6 +19,7 @@ from research_agent.retrieval.vector_store import create_vector_store
 from research_agent.retrieval.bm25 import BM25Retriever
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+logger = logging.getLogger(__name__)
 
 UPLOAD_DIR = Path("data/uploads")
 FILES_JSON = UPLOAD_DIR / "files.json"
@@ -41,6 +43,13 @@ def _get_bm25() -> BM25Retriever:
     if _bm25 is None:
         _bm25 = BM25Retriever()
     return _bm25
+
+
+def _rebuild_bm25_from_vector_store(vs) -> int:
+    ids, documents, metadatas = vs.get_all_documents()
+    bm25 = _get_bm25()
+    bm25.index_documents(ids, documents, metadatas)
+    return len(ids)
 
 
 def _read_files_meta() -> dict:
@@ -123,16 +132,16 @@ class DocumentDeleteResponse(BaseModel):
 
 
 def _scan_chroma_docs() -> list[dict]:
-    """Discover documents from ChromaDB that are not in files.json."""
+    """Discover documents from vector store that are not in files.json."""
     try:
         vs = _get_vector_store()
-        data = vs.collection.get(include=["metadatas"])
-        if not data or not data["metadatas"]:
+        _, _, metadatas = vs.get_all_documents()
+        if not metadatas:
             return []
 
         # Group chunks by doc_title
         doc_groups: dict[str, dict] = {}
-        for meta in data["metadatas"]:
+        for meta in metadatas:
             title = meta.get("doc_title") or meta.get("source") or meta.get("file_name", "unknown")
             if title not in doc_groups:
                 doc_groups[title] = {
@@ -154,6 +163,7 @@ def _scan_chroma_docs() -> list[dict]:
             for name, info in doc_groups.items()
         ]
     except Exception:
+        logger.exception("Failed to scan indexed documents from vector store")
         return []
 
 
@@ -262,7 +272,7 @@ async def upload_document(file: UploadFile = File(...)):
 
 @router.delete("/{file_id}", response_model=DocumentDeleteResponse)
 async def delete_document(file_id: str):
-    """Delete a document: remove original file, ChromaDB chunks, rebuild BM25."""
+    """Delete a document: remove vector chunks, rebuild BM25, then remove files."""
     meta = _read_files_meta()
     target = None
     for f in meta["files"]:
@@ -273,36 +283,58 @@ async def delete_document(file_id: str):
     if not target:
         raise HTTPException(status_code=404, detail="Document not found")
 
+    file_dir = UPLOAD_DIR / file_id
+    vs = _get_vector_store()
+
     try:
-        file_dir = UPLOAD_DIR / file_id
-        if file_dir.exists():
-            shutil.rmtree(file_dir)
+        deleted_chunks = vs.delete_by_upload_id(file_id)
+    except Exception as e:
+        logger.exception("Failed to delete vector chunks for file_id=%s", file_id)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete vector chunks for document {file_id}: {e}",
+        ) from e
 
-        vs = _get_vector_store()
-        try:
-            vs.collection.delete(where={"upload_id": file_id})
-        except Exception:
-            pass
-
-        try:
-            remaining = vs.collection.get(include=["documents", "metadatas"])
-            if remaining and remaining["ids"]:
-                bm25 = _get_bm25()
-                bm25.index_documents(
-                    remaining["ids"],
-                    remaining["documents"] or [],
-                    remaining["metadatas"] or [],
-                )
-        except Exception:
-            pass
-
-        meta["files"] = [f for f in meta["files"] if f["id"] != file_id]
-        _write_files_meta(meta)
-
-        return DocumentDeleteResponse(
-            success=True,
-            data={"file_id": file_id, "message": "Document deleted"},
+    expected_chunks = int(target.get("chunks") or 0)
+    if expected_chunks > 0 and deleted_chunks == 0:
+        logger.error(
+            "No vector chunks deleted for file_id=%s, expected_chunks=%s",
+            file_id,
+            expected_chunks,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"No vector chunks deleted for document {file_id}; aborting deletion",
         )
 
+    try:
+        indexed_chunks = _rebuild_bm25_from_vector_store(vs)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Delete failed: {e}")
+        logger.exception("Failed to rebuild BM25 after deleting file_id=%s", file_id)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to rebuild BM25 after deleting document {file_id}: {e}",
+        ) from e
+
+    try:
+        if file_dir.exists():
+            shutil.rmtree(file_dir)
+    except Exception as e:
+        logger.exception("Failed to remove uploaded files for file_id=%s", file_id)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to remove uploaded files for document {file_id}: {e}",
+        ) from e
+
+    meta["files"] = [f for f in meta["files"] if f["id"] != file_id]
+    _write_files_meta(meta)
+
+    return DocumentDeleteResponse(
+        success=True,
+        data={
+            "file_id": file_id,
+            "message": "Document deleted",
+            "deleted_chunks": deleted_chunks,
+            "indexed_chunks": indexed_chunks,
+        },
+    )

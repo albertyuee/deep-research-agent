@@ -78,6 +78,30 @@ class VectorStore:
 
         return output
 
+    def delete_by_upload_id(self, upload_id: str) -> int:
+        """Delete all chunks belonging to an uploaded document."""
+        matched = self.collection.get(
+            where={"upload_id": upload_id},
+            include=["metadatas"],
+        )
+        ids = matched.get("ids", []) if matched else []
+        if not ids:
+            return 0
+
+        self.collection.delete(ids=ids)
+        return len(ids)
+
+    def get_all_documents(self) -> tuple[list[str], list[str], list[dict]]:
+        """Return all indexed chunks for rebuilding keyword indexes."""
+        data = self.collection.get(include=["documents", "metadatas"])
+        if not data or not data.get("ids"):
+            return [], [], []
+        return (
+            data["ids"],
+            data.get("documents") or [],
+            data.get("metadatas") or [],
+        )
+
     @property
     def count(self) -> int:
         return self.collection.count()
@@ -198,6 +222,62 @@ class MilvusVectorStore:
                 )
 
         return output
+
+    @staticmethod
+    def _string_literal(value: str) -> str:
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{escaped}"'
+
+    def delete_by_upload_id(self, upload_id: str) -> int:
+        """Delete all chunks belonging to an uploaded document."""
+        client = self._get_client()
+        expr = f"upload_id == {self._string_literal(upload_id)}"
+        matched = client.query(
+            collection_name=self._collection_name,
+            filter=expr,
+            output_fields=["chunk_id"],
+            limit=16384,
+        )
+        if not matched:
+            return 0
+
+        result = client.delete(collection_name=self._collection_name, filter=expr)
+        if isinstance(result, dict):
+            return int(result.get("delete_count") or result.get("delete_cnt") or len(matched))
+        return int(getattr(result, "delete_count", len(matched)))
+
+    def get_all_documents(self) -> tuple[list[str], list[str], list[dict]]:
+        """Return all indexed chunks for rebuilding keyword indexes."""
+        client = self._get_client()
+        try:
+            rows = client.query(
+                collection_name=self._collection_name,
+                filter="",
+                output_fields=["chunk_id", "text", "*"],
+                limit=16384,
+            )
+        except Exception:
+            rows = client.query(
+                collection_name=self._collection_name,
+                filter="chunk_id != ''",
+                output_fields=["chunk_id", "text", "*"],
+                limit=16384,
+            )
+        ids: list[str] = []
+        texts: list[str] = []
+        metadatas: list[dict] = []
+        for row in rows:
+            chunk_id = row.get("chunk_id", "")
+            text = row.get("text", "")
+            if not chunk_id or text is None:
+                continue
+            ids.append(chunk_id)
+            texts.append(text)
+            metadatas.append({
+                k: v for k, v in row.items()
+                if k not in ("chunk_id", "text", "vector")
+            })
+        return ids, texts, metadatas
 
     @property
     def count(self) -> int:
