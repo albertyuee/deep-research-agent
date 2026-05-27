@@ -4,14 +4,36 @@ import os
 from pathlib import Path
 from typing import Literal
 
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 from pydantic import Field
+
+
+ENV_FILE = Path(__file__).parent / ".env"
+
+
+def load_env() -> None:
+    """Load .env and sync LangSmith aliases before tracing decorators run."""
+    load_dotenv(ENV_FILE, override=True)
+    if os.getenv("LANGSMITH_API_KEY") and not os.getenv("LANGCHAIN_API_KEY"):
+        os.environ["LANGCHAIN_API_KEY"] = os.environ["LANGSMITH_API_KEY"]
+    if os.getenv("LANGSMITH_PROJECT") and not os.getenv("LANGCHAIN_PROJECT"):
+        os.environ["LANGCHAIN_PROJECT"] = os.environ["LANGSMITH_PROJECT"]
+    if os.getenv("LANGSMITH_TRACING") and not os.getenv("LANGSMITH_TRACING_V2"):
+        os.environ["LANGSMITH_TRACING_V2"] = os.environ["LANGSMITH_TRACING"]
+    if os.getenv("LANGSMITH_TRACING_V2") and not os.getenv("LANGCHAIN_TRACING_V2"):
+        os.environ["LANGCHAIN_TRACING_V2"] = os.environ["LANGSMITH_TRACING_V2"]
+    if os.getenv("LANGSMITH_ENDPOINT") and not os.getenv("LANGCHAIN_ENDPOINT"):
+        os.environ["LANGCHAIN_ENDPOINT"] = os.environ["LANGSMITH_ENDPOINT"]
+
+
+load_env()
 
 
 class LLMSettings(BaseSettings):
     model_config = {
         "env_prefix": "LLM_",
-        "env_file": Path(__file__).parent / ".env",
+        "env_file": ENV_FILE,
         "extra": "ignore"
     }
 
@@ -121,6 +143,20 @@ class MCPSettings(BaseSettings):
     web_search_timeout: float = 30.0
 
 
+class LangSmithSettings(BaseSettings):
+    model_config = {
+        "env_prefix": "LANGSMITH_",
+        "env_file": ENV_FILE,
+        "extra": "ignore"
+    }
+
+    tracing: bool = False
+    tracing_v2: bool = False
+    api_key: str = ""
+    project: str = "deep-research-agent"
+    endpoint: str = "https://api.smith.langchain.com"
+
+
 class Settings(BaseSettings):
     model_config = {
         "env_file": Path(__file__).parent / ".env",
@@ -134,6 +170,7 @@ class Settings(BaseSettings):
     retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
     rerank: RerankSettings = Field(default_factory=RerankSettings)
     mcp: MCPSettings = Field(default_factory=MCPSettings)
+    langsmith: LangSmithSettings = Field(default_factory=LangSmithSettings)
 
     project_root: Path = Field(default_factory=lambda: Path(__file__).parent.parent)
     data_dir: Path = Field(default_factory=lambda: Path(__file__).parent.parent / "data")
@@ -145,4 +182,5 @@ settings = Settings()
 def reload_settings():
     """Reload settings from .env after changes. Rebuild the singleton."""
     global settings
+    load_env()
     settings = Settings()

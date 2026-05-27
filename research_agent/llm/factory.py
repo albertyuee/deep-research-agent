@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from config.settings import settings
 from research_agent.llm.base import BaseLLMClient
 from research_agent.llm.openai_client import OpenAIClient
 from research_agent.llm.qwen_client import QwenClient
-from config.settings import settings
 
 
 _PROVIDER_MAP = {

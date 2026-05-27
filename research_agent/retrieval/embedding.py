@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+from langsmith import traceable
 from typing import Literal
 
 
@@ -18,6 +19,21 @@ def _get_local_model():
         settings.embedding.model,
         device=settings.embedding.device
     )
+
+
+def _summarize_embedding_inputs(inputs: dict) -> dict:
+    texts = inputs.get("texts") or []
+    query = inputs.get("query")
+    return {
+        "text_count": len(texts),
+        "query": query,
+        "max_text_chars": max((len(text) for text in texts), default=0),
+    }
+
+
+def _summarize_embedding_output(output) -> dict:
+    shape = getattr(output, "shape", None)
+    return {"shape": list(shape) if shape is not None else None}
 
 
 class EmbeddingService:
@@ -80,12 +96,24 @@ class EmbeddingService:
 
         return np.array(embeddings)
 
+    @traceable(
+        name="embed_documents",
+        run_type="embedding",
+        process_inputs=_summarize_embedding_inputs,
+        process_outputs=_summarize_embedding_output,
+    )
     def embed(self, texts: list[str]) -> np.ndarray:
         """Generate embeddings for a list of texts."""
         if self.mode == "api":
             return self._embed_api(texts)
         return self._embed_local(texts)
 
+    @traceable(
+        name="embed_query",
+        run_type="embedding",
+        process_inputs=_summarize_embedding_inputs,
+        process_outputs=_summarize_embedding_output,
+    )
     def embed_query(self, query: str) -> np.ndarray:
         """Generate embedding for a single query."""
         if self.mode == "api":

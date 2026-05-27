@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import httpx
+from langsmith import traceable
 
 from config.settings import settings
 
@@ -34,6 +35,7 @@ class SiliconFlowReranker:
     def is_enabled(self) -> bool:
         return settings.rerank.enabled and bool(self.api_key)
 
+    @traceable(name="siliconflow_rerank", run_type="retriever")
     def rerank(self, query: str, documents: list[str], top_n: int | None = None) -> list[RerankResult]:
         if not documents:
             return []

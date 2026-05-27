@@ -192,6 +192,21 @@ cd frontend-vue && npm run dev
 
 ## 配置说明
 
+### LangSmith，可选
+
+开启后可在 LangSmith 查看 LangGraph 节点、LLM、Embedding、Rerank 和 Web Search trace。
+
+```env
+LANGSMITH_TRACING=true
+LANGSMITH_TRACING_V2=true
+LANGSMITH_API_KEY=lsv2-your-langsmith-api-key
+LANGSMITH_PROJECT=deep-research-agent
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+# 兼容旧版 LangChain/LangSmith tracing 开关
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+```
+
 ### LLM
 
 ```env

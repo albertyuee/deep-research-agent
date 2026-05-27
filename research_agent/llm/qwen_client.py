@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import AsyncIterator
 
+from langsmith import traceable
 from openai import AsyncOpenAI
 
 from research_agent.llm.base import BaseLLMClient
@@ -17,6 +18,7 @@ class QwenClient(BaseLLMClient):
         self.max_tokens = kwargs.get("max_tokens", 4096)
         self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
+    @traceable(name="qwen_chat", run_type="llm")
     async def chat(self, messages: list[dict], **kwargs) -> str:
         response = await self.client.chat.completions.create(
             model=self.model,
@@ -26,6 +28,7 @@ class QwenClient(BaseLLMClient):
         )
         return response.choices[0].message.content or ""
 
+    @traceable(name="qwen_stream_chat", run_type="llm", reduce_fn=lambda chunks: "".join(chunks))
     async def stream_chat(self, messages: list[dict], **kwargs) -> AsyncIterator[str]:
         stream = await self.client.chat.completions.create(
             model=self.model,
@@ -39,6 +42,7 @@ class QwenClient(BaseLLMClient):
             if delta.content:
                 yield delta.content
 
+    @traceable(name="qwen_chat_structured", run_type="llm")
     async def chat_structured(
         self, messages: list[dict], output_schema: dict, **kwargs
     ) -> dict:

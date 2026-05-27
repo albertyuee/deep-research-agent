@@ -54,6 +54,14 @@ export interface MCPSettings {
   web_search_timeout: number
 }
 
+export interface LangSmithSettings {
+  tracing: boolean
+  tracing_v2: boolean
+  api_key: string
+  project: string
+  endpoint: string
+}
+
 export interface SettingsData {
   llm: LLMSettings
   embedding: EmbeddingSettings
@@ -61,6 +69,7 @@ export interface SettingsData {
   rerank: RerankSettings
   milvus: MilvusSettings
   mcp: MCPSettings
+  langsmith: LangSmithSettings
 }
 
 export interface SystemInfo {
@@ -77,7 +86,7 @@ export async function fetchSettings(): Promise<SettingsData> {
 }
 
 export async function updateSettings(
-  patch: Partial<{ llm: Partial<LLMSettings>; embedding: Partial<EmbeddingSettings>; retrieval: Partial<RetrievalSettings>; rerank: Partial<RerankSettings>; milvus: Partial<MilvusSettings>; mcp: Partial<MCPSettings> }>
+  patch: Partial<{ llm: Partial<LLMSettings>; embedding: Partial<EmbeddingSettings>; retrieval: Partial<RetrievalSettings>; rerank: Partial<RerankSettings>; milvus: Partial<MilvusSettings>; mcp: Partial<MCPSettings>; langsmith: Partial<LangSmithSettings> }>
 ): Promise<{ updated: string[]; need_restart: boolean }> {
   const resp = await fetch(`${BASE}/settings`, {
     method: 'PATCH',
@@ -102,7 +111,7 @@ export interface TestConnectionResult {
 }
 
 export async function testConnection(
-  service: 'llm' | 'embedding' | 'milvus',
+  service: 'llm' | 'embedding' | 'milvus' | 'langsmith',
   config?: Record<string, unknown>,
 ): Promise<TestConnectionResult> {
   const resp = await fetch(`${BASE}/settings/test-connection`, {

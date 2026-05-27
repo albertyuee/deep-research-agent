@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from langsmith import traceable
+
 from research_agent.retrieval.vector_store import VectorStore, RetrievalResult
 from research_agent.retrieval.bm25 import BM25Retriever, BM25Result
 from research_agent.retrieval.reranker import RerankResult, create_reranker
@@ -41,6 +43,7 @@ class HybridRetriever:
         self.rrf_k = settings.retrieval.rrf_k
         self.reranker = reranker if reranker is not None else create_reranker()
 
+    @traceable(name="hybrid_search", run_type="retriever")
     def search(
         self, query: str, top_k: int | None = None, vector_weight: float = 0.5
     ) -> list[HybridResult]:
@@ -85,6 +88,7 @@ class HybridRetriever:
         sorted_results = sorted(fused.values(), key=lambda x: x.combined_score, reverse=True)
         return self._rerank_results(query, sorted_results, top_k)
 
+    @traceable(name="vector_search", run_type="retriever")
     def search_vector_only(self, query: str, top_k: int | None = None) -> list[HybridResult]:
         top_k = top_k or settings.retrieval.top_k
         results = self.vector_store.search(query, top_k=self._candidate_top_k(top_k))
@@ -100,6 +104,7 @@ class HybridRetriever:
         ]
         return self._rerank_results(query, hybrid_results, top_k)
 
+    @traceable(name="keyword_search", run_type="retriever")
     def search_keyword_only(self, query: str, top_k: int | None = None) -> list[HybridResult]:
         if not self.bm25.is_indexed:
             return []

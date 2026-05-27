@@ -128,7 +128,16 @@ async def _run_agent(task_id: str, query: str, enable_web_search: bool = False):
         }
         t0 = time.time()
         print(f"[AGENT {task_id}] Calling agent_graph.ainvoke...", flush=True, file=sys.stderr)
-        result = await agent_graph.ainvoke(initial_state)
+        run_config = {
+            "run_name": "deep_research_agent",
+            "tags": ["deep-research", "langgraph"],
+            "metadata": {
+                "task_id": task_id,
+                "query": query[:500],
+                "enable_web_search": enable_web_search,
+            },
+        }
+        result = await agent_graph.ainvoke(initial_state, config=run_config)
         print(f"[AGENT {task_id}] ainvoke DONE after {time.time()-t0:.1f}s", flush=True, file=sys.stderr)
 
         final_report = result.get("final_report", "")

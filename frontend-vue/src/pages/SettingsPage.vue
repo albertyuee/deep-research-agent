@@ -1,10 +1,10 @@
 <template>
   <div>
     <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
+    <div class="sticky top-0 z-10 -mx-2 mb-6 flex items-center justify-between rounded-2xl bg-white/90 px-2 py-3 backdrop-blur">
       <div>
         <h1 class="text-xl font-bold text-gray-800">系统设置</h1>
-        <p class="text-sm text-gray-400 mt-0.5">配置 LLM、嵌入模型、向量存储和检索参数</p>
+        <p class="text-sm text-gray-400 mt-0.5">集中配置模型、检索、观测追踪和外部服务</p>
       </div>
       <n-button type="primary" :loading="store.isSaving" @click="onSave" size="large">
         <template #icon><n-icon><save-outline /></n-icon></template>
@@ -25,6 +25,35 @@
       </n-alert>
 
       <div v-if="store.settings" class="space-y-5">
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <p class="text-xs text-gray-400">LangSmith</p>
+            <p class="mt-1 text-lg font-semibold" :class="form.langsmith.tracing ? 'text-emerald-600' : 'text-gray-700'">
+              {{ form.langsmith.tracing ? 'Tracing 已开启' : 'Tracing 未开启' }}
+            </p>
+            <p class="mt-1 truncate text-xs text-gray-400">{{ form.langsmith.project || '未设置项目名' }}</p>
+          </div>
+          <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <p class="text-xs text-gray-400">向量存储</p>
+            <p class="mt-1 text-lg font-semibold text-gray-700">{{ form.retrieval.vector_backend === 'milvus' ? 'Milvus' : 'ChromaDB' }}</p>
+            <p class="mt-1 text-xs text-gray-400">{{ store.systemInfo?.chunk_count ?? 0 }} chunks</p>
+          </div>
+          <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <p class="text-xs text-gray-400">网络搜索</p>
+            <p class="mt-1 text-lg font-semibold" :class="form.mcp.web_search_enabled ? 'text-emerald-600' : 'text-gray-700'">
+              {{ form.mcp.web_search_enabled ? '已启用' : '未启用' }}
+            </p>
+            <p class="mt-1 text-xs text-gray-400">Tavily MCP</p>
+          </div>
+          <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <p class="text-xs text-gray-400">Rerank</p>
+            <p class="mt-1 text-lg font-semibold" :class="form.rerank.enabled ? 'text-emerald-600' : 'text-gray-700'">
+              {{ form.rerank.enabled ? '已启用' : '未启用' }}
+            </p>
+            <p class="mt-1 truncate text-xs text-gray-400">{{ form.rerank.model }}</p>
+          </div>
+        </div>
+
         <!-- LLM -->
         <SettingsSection title="LLM 大语言模型">
           <template #actions>
@@ -53,6 +82,34 @@
               <n-slider v-model:value="form.llm.temperature" :min="0" :max="2" :step="0.1" />
             </FormField>
           </div>
+        </SettingsSection>
+
+        <!-- LangSmith -->
+        <SettingsSection title="LangSmith 观测追踪">
+          <template #actions>
+            <n-button size="small" :loading="testing.langsmith" @click="testLangSmith" ghost>
+              <template #icon><n-icon><flash-outline /></n-icon></template>
+              {{ testing.langsmith ? '测试中...' : '测试连接' }}
+            </n-button>
+          </template>
+          <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+            <FormField label="启用 Tracing" class="col-span-2">
+              <n-switch v-model:value="form.langsmith.tracing" />
+              <span class="ml-3 text-sm text-gray-400">开启后上传 LangGraph、LLM、Embedding、Rerank 和 Web Search trace</span>
+            </FormField>
+            <FormField label="项目名称">
+              <n-input v-model:value="form.langsmith.project" size="medium" placeholder="deep-research-agent" />
+            </FormField>
+            <FormField label="API Endpoint">
+              <n-input v-model:value="form.langsmith.endpoint" size="medium" placeholder="https://api.smith.langchain.com" />
+            </FormField>
+            <FormField label="API Key" class="col-span-2">
+              <n-input v-model:value="form.langsmith.api_key" type="password" show-password-on="click" size="medium" placeholder="留空则不修改" />
+            </FormField>
+          </div>
+          <n-alert type="info" :bordered="false" class="mt-4 text-xs">
+            保存后会同步写入 LANGSMITH_* 和 LANGCHAIN_* 兼容变量；如果开关不生效，请重启后端。
+          </n-alert>
         </SettingsSection>
 
         <!-- Embedding -->
@@ -234,14 +291,15 @@ const llmProviders = [
   { label: 'Qwen（通义千问）', value: 'qwen' },
 ]
 
-const testing = reactive({ llm: false, embedding: false, milvus: false })
+const testing = reactive({ llm: false, embedding: false, milvus: false, langsmith: false })
 const testResult = ref<{ type: string; ok: boolean; msg: string } | null>(null)
 
-async function runTest(service: 'llm' | 'embedding' | 'milvus') {
+async function runTest(service: 'llm' | 'embedding' | 'milvus' | 'langsmith') {
   testing[service] = true
   testResult.value = null
   try {
-    const result = await testConnection(service)
+    const config = service === 'langsmith' ? { ...form.langsmith } : undefined
+    const result = await testConnection(service, config)
     testResult.value = { type: service, ok: result.success, msg: result.data.message }
   } catch (e) {
     testResult.value = { type: service, ok: false, msg: e instanceof Error ? e.message : '测试请求失败' }
@@ -253,6 +311,7 @@ async function runTest(service: 'llm' | 'embedding' | 'milvus') {
 function testLLM() { runTest('llm') }
 function testEmbedding() { runTest('embedding') }
 function testMilvus() { runTest('milvus') }
+function testLangSmith() { runTest('langsmith') }
 
 const form = reactive({
   llm: { provider: 'siliconflow', model: '', api_key: '', base_url: '', temperature: 0.3, max_tokens: 4096 },
@@ -261,6 +320,7 @@ const form = reactive({
   rerank: { enabled: false, provider: 'siliconflow', model: 'Qwen/Qwen3-Reranker-8B', api_key: '', base_url: 'https://api.siliconflow.cn/v1', top_n: 5, candidate_multiplier: 4, timeout: 30, instruction: '请根据查询内容判断文档与查询的相关性，并按相关性从高到低排序。' },
   milvus: { uri: '', token: '', host: 'localhost', port: 19530, collection_name: 'research_docs' },
   mcp: { web_search_enabled: false, tavily_api_key: '', tavily_max_results: 5, web_search_timeout: 30.0 },
+  langsmith: { tracing: false, tracing_v2: false, api_key: '', project: 'deep-research-agent', endpoint: 'https://api.smith.langchain.com' },
 })
 
 watch(() => store.settings, (s) => {
@@ -271,6 +331,7 @@ watch(() => store.settings, (s) => {
     if ((s as any).rerank) Object.assign(form.rerank, (s as any).rerank)
     if ((s as any).milvus) Object.assign(form.milvus, (s as any).milvus)
     if ((s as any).mcp) Object.assign(form.mcp, (s as any).mcp)
+    if ((s as any).langsmith) Object.assign(form.langsmith, (s as any).langsmith)
   }
 }, { immediate: true })
 
@@ -284,6 +345,7 @@ function onSave() {
     rerank: form.rerank,
     milvus: form.retrieval.vector_backend === 'milvus' ? form.milvus : undefined,
     mcp: form.mcp,
+    langsmith: { ...form.langsmith, tracing_v2: form.langsmith.tracing },
   })
 }
 </script>

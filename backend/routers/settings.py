@@ -87,6 +87,17 @@ def _get_milvus_settings() -> dict:
     }
 
 
+def _get_langsmith_settings() -> dict:
+    tracing_v2 = app_settings.langsmith.tracing_v2 or app_settings.langsmith.tracing
+    return {
+        "tracing": app_settings.langsmith.tracing,
+        "tracing_v2": tracing_v2,
+        "api_key": _mask_key(app_settings.langsmith.api_key) if app_settings.langsmith.api_key else "",
+        "project": app_settings.langsmith.project,
+        "endpoint": app_settings.langsmith.endpoint,
+    }
+
+
 def _write_env(updates: dict[str, str]) -> None:
     """Write key-value pairs to the .env file, preserving comments and structure."""
     # Read the original file as text (don't parse with dotenv_values — fragile)
@@ -138,6 +149,7 @@ async def get_settings():
             "rerank": _get_rerank_settings(),
             "milvus": _get_milvus_settings(),
             "mcp": _get_mcp_settings(),
+            "langsmith": _get_langsmith_settings(),
         },
     }
 
@@ -183,9 +195,14 @@ async def update_settings(body: dict):
         "mcp.tavily_api_key": ("MCP_TAVILY_API_KEY", str),
         "mcp.tavily_max_results": ("MCP_TAVILY_MAX_RESULTS", str),
         "mcp.web_search_timeout": ("MCP_WEB_SEARCH_TIMEOUT", str),
+        "langsmith.tracing": ("LANGSMITH_TRACING", lambda v: str(v).lower()),
+        "langsmith.tracing_v2": ("LANGSMITH_TRACING_V2", lambda v: str(v).lower()),
+        "langsmith.api_key": ("LANGSMITH_API_KEY", str),
+        "langsmith.project": ("LANGSMITH_PROJECT", str),
+        "langsmith.endpoint": ("LANGSMITH_ENDPOINT", str),
     }
 
-    for section in ["llm", "embedding", "retrieval", "rerank", "milvus", "mcp"]:
+    for section in ["llm", "embedding", "retrieval", "rerank", "milvus", "mcp", "langsmith"]:
         if section in body:
             for key, value in body[section].items():
                 path = f"{section}.{key}"
@@ -193,7 +210,19 @@ async def update_settings(body: dict):
                     env_key, converter = path_map[path]
                     if ("api_key" in key or key == "token") and value and "***" in str(value):
                         continue
-                    env_updates[env_key] = converter(value)
+                    converted = converter(value)
+                    env_updates[env_key] = converted
+                    if path == "langsmith.tracing":
+                        env_updates["LANGSMITH_TRACING_V2"] = converted
+                        env_updates["LANGCHAIN_TRACING_V2"] = converted
+                    elif path == "langsmith.tracing_v2":
+                        env_updates["LANGCHAIN_TRACING_V2"] = converted
+                    elif path == "langsmith.api_key":
+                        env_updates["LANGCHAIN_API_KEY"] = converted
+                    elif path == "langsmith.project":
+                        env_updates["LANGCHAIN_PROJECT"] = converted
+                    elif path == "langsmith.endpoint":
+                        env_updates["LANGCHAIN_ENDPOINT"] = converted
                     updated_keys.append(path)
 
     if not env_updates:
@@ -201,12 +230,15 @@ async def update_settings(body: dict):
 
     _write_env(env_updates)
     reload_settings()
+    global app_settings
+    from config.settings import settings as reloaded_settings
+    app_settings = reloaded_settings
 
     return {
         "success": True,
         "data": {
             "updated": updated_keys,
-            "need_restart": False,
+            "need_restart": any(key.startswith("langsmith.") for key in updated_keys),
         },
     }
 
@@ -223,6 +255,8 @@ async def test_connection(body: dict):
         return await _test_embedding(config)
     elif service == "milvus":
         return await _test_milvus(config)
+    elif service == "langsmith":
+        return await _test_langsmith(config)
     else:
         raise HTTPException(status_code=400, detail=f"Unknown service: {service}")
 
@@ -268,6 +302,36 @@ async def _test_embedding(config: dict):
         return {
             "success": False,
             "data": {"message": f"嵌入模型连接失败: {e}"},
+        }
+
+
+async def _test_langsmith(config: dict):
+    """Test LangSmith API key and project access."""
+    try:
+        from langsmith import Client
+
+        raw_api_key = config.get("api_key")
+        api_key = app_settings.langsmith.api_key if raw_api_key and "***" in str(raw_api_key) else raw_api_key or app_settings.langsmith.api_key
+        endpoint = config.get("endpoint") or app_settings.langsmith.endpoint
+        project = config.get("project") or app_settings.langsmith.project
+        if not api_key:
+            return {
+                "success": False,
+                "data": {"message": "LangSmith API Key 未配置"},
+            }
+
+        client = Client(api_key=api_key, api_url=endpoint)
+        list(client.list_projects(limit=1))
+        return {
+            "success": True,
+            "data": {
+                "message": f"LangSmith 连接成功，项目: {project}",
+            },
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "data": {"message": f"LangSmith 连接失败: {e}"},
         }
 
 

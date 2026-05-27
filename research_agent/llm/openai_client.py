@@ -6,6 +6,7 @@ import logging
 from typing import AsyncIterator
 
 import httpx
+from langsmith import traceable
 
 from research_agent.llm.base import BaseLLMClient
 
@@ -69,6 +70,7 @@ class OpenAIClient(BaseLLMClient):
                     await asyncio.sleep(wait)
         raise last_error
 
+    @traceable(name="openai_chat", run_type="llm")
     async def chat(self, messages: list[dict], **kwargs) -> str:
         body = self._build_body(messages, **kwargs)
 
@@ -78,6 +80,7 @@ class OpenAIClient(BaseLLMClient):
 
         return await self._retry(_fn, "chat")
 
+    @traceable(name="openai_stream_chat", run_type="llm", reduce_fn=lambda chunks: "".join(chunks))
     async def stream_chat(self, messages: list[dict], **kwargs) -> AsyncIterator[str]:
         body = self._build_body(messages, **kwargs)
         body["stream"] = True
@@ -107,6 +110,7 @@ class OpenAIClient(BaseLLMClient):
                         except json.JSONDecodeError:
                             pass
 
+    @traceable(name="openai_chat_structured", run_type="llm")
     async def chat_structured(
         self, messages: list[dict], output_schema: dict, **kwargs
     ) -> dict:

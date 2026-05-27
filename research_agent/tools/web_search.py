@@ -9,10 +9,13 @@ from __future__ import annotations
 import json
 import uuid
 
+from langsmith import traceable
+
 from research_agent.tools.mcp_client import mcp_client
 from config.settings import settings
 
 
+@traceable(name="mcp_web_search", run_type="tool")
 async def search_web(query: str, max_results: int | None = None) -> list[dict]:
     """Search the web via MCP and return agent-compatible result dicts.
 
