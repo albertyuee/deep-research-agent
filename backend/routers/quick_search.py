@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 import time
+import traceback
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -14,15 +17,25 @@ from research_agent.retrieval.bm25 import BM25Retriever
 from research_agent.retrieval.hybrid import HybridRetriever
 from config.settings import settings
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/quick-search", tags=["quick-search"])
 
-_SUMMARY_SYSTEM_PROMPT = """你是一个研究助手。基于以下检索到的文档片段，用中文简洁地回答用户的问题。
+_SUMMARY_SYSTEM_PROMPT = """你是一个研究助手。基于对话上下文和检索到的文档片段，用中文简洁地回答用户的问题。
 
 要求：
 - 回答要准确、简洁，控制在 300 字以内
 - 优先使用检索结果中的信息
+- 用户的问题如果依赖上文，要结合最近对话理解指代
 - 如果检索结果不足以回答问题，如实告知用户
 - 使用 Markdown 格式组织回答，包括要点列表"""
+
+_REWRITE_SYSTEM_PROMPT = """你负责把用户当前问题改写成适合知识库检索的独立问题。
+
+要求：
+- 如果当前问题包含“它、这个、刚才、继续、展开”等依赖上文的指代，请结合最近对话补全指代
+- 如果当前问题本身已经完整，直接原样返回
+- 只返回改写后的问题，不要解释"""
 
 _vector_store = None
 _bm25: BM25Retriever | None = None
@@ -37,9 +50,15 @@ def _get_hybrid() -> HybridRetriever:
     return HybridRetriever(_vector_store, _bm25)
 
 
+class QuickSearchHistoryMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(..., min_length=1, max_length=4000)
+
+
 class QuickSearchRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=1000)
     top_k: int = Field(default=5, ge=1, le=20)
+    history: list[QuickSearchHistoryMessage] = Field(default_factory=list, max_length=20)
 
 
 class QuickSearchResponse(BaseModel):
@@ -48,19 +67,55 @@ class QuickSearchResponse(BaseModel):
     error: str | None = None
 
 
+def _history_to_messages(history: list[QuickSearchHistoryMessage]) -> list[dict[str, str]]:
+    messages: list[dict[str, str]] = []
+    for item in history[-8:]:
+        content = item.content.strip()
+        if content:
+            messages.append({"role": item.role, "content": content[:1500]})
+    return messages
+
+
+async def _rewrite_search_query(client, query: str, history_messages: list[dict[str, str]]) -> str:
+    if not history_messages:
+        return query.strip()
+
+    messages = [
+        {"role": "system", "content": _REWRITE_SYSTEM_PROMPT},
+        *history_messages,
+        {"role": "user", "content": query.strip()},
+    ]
+    rewritten = (await client.chat(messages, temperature=0.0, max_tokens=256)).strip()
+    return rewritten[:1000] or query.strip()
+
+
 @router.post("", response_model=QuickSearchResponse)
 async def quick_search(req: QuickSearchRequest):
     """Execute a fast hybrid search + LLM summarization."""
-    if not req.query.strip():
+    query = req.query.strip()
+    if not query:
         raise HTTPException(status_code=400, detail="Query cannot be empty")
 
     t0 = time.time()
+    history_messages = _history_to_messages(req.history)
+    client = None
+    search_query = query
+
+    if history_messages:
+        try:
+            client = create_llm_client()
+            search_query = await _rewrite_search_query(client, query, history_messages)
+        except Exception:
+            logger.warning(f"Query rewrite failed, using original query: {query}", exc_info=True)
+            search_query = query
 
     try:
         hybrid = _get_hybrid()
-        results = hybrid.search(req.query, top_k=req.top_k)
+        results = hybrid.search(search_query, top_k=req.top_k)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"检索失败: {e}")
+        tb = traceback.format_exc()
+        logger.exception(f"检索失败: {e}")
+        raise HTTPException(status_code=500, detail=f"检索失败: {type(e).__name__}: {e}\n{tb}")
 
     sources = [
         {
@@ -74,26 +129,39 @@ async def quick_search(req: QuickSearchRequest):
     ]
 
     try:
-        client = create_llm_client()
+        if client is None:
+            client = create_llm_client()
         context = "\n\n---\n\n".join(
             f"[来源 {i+1}] {r.content[:800]}"
             for i, r in enumerate(results[:5])
         )
         messages = [
             {"role": "system", "content": _SUMMARY_SYSTEM_PROMPT},
-            {"role": "user", "content": f"检索结果：\n\n{context}\n\n用户问题：{req.query}\n\n请回答："},
+            *history_messages,
+            {
+                "role": "user",
+                "content": (
+                    f"检索问题：{search_query}\n\n"
+                    f"检索结果：\n\n{context}\n\n"
+                    f"用户当前问题：{query}\n\n"
+                    "请结合对话上下文和检索结果回答："
+                ),
+            },
         ]
         raw = await client.chat(messages, temperature=0.3, max_tokens=1024)
         summary = raw.strip()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"LLM 摘要生成失败: {e}")
+        tb = traceback.format_exc()
+        logger.exception(f"LLM 摘要生成失败: {e}")
+        raise HTTPException(status_code=500, detail=f"LLM 摘要生成失败: {type(e).__name__}: {e}\n{tb}")
 
     elapsed_ms = int((time.time() - t0) * 1000)
 
     return QuickSearchResponse(
         success=True,
         data={
-            "query": req.query,
+            "query": query,
+            "rewritten_query": search_query if search_query != query else None,
             "summary": summary,
             "sources": sources,
             "elapsed_ms": elapsed_ms,

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import traceback
 from typing import AsyncIterator
 
 import httpx
@@ -54,7 +55,11 @@ class OpenAIClient(BaseLLMClient):
                 headers=self._headers(),
             )
             if resp.status_code != 200:
-                raise RuntimeError(f"API error {resp.status_code}: {resp.text[:300]}")
+                body_preview = resp.text[:500]
+                logger.error(
+                    f"API returned non-200 status {resp.status_code}. Response body: {body_preview}"
+                )
+                raise RuntimeError(f"API error {resp.status_code}: {body_preview}")
             return resp.json()
 
     async def _retry(self, fn, label: str):
@@ -64,10 +69,21 @@ class OpenAIClient(BaseLLMClient):
                 return await fn()
             except Exception as e:
                 last_error = e
+                tb = traceback.format_exc()
                 if attempt < self.max_retries:
                     wait = 2 ** attempt
-                    logger.warning(f"LLM {label} attempt {attempt+1} failed: {e}. Retrying in {wait}s...")
+                    logger.warning(
+                        f"LLM {label} attempt {attempt+1} failed: {type(e).__name__}: {e}\n"
+                        f"Traceback:\n{tb}\n"
+                        f"Retrying in {wait}s..."
+                    )
                     await asyncio.sleep(wait)
+                else:
+                    logger.error(
+                        f"LLM {label} all attempts exhausted. "
+                        f"Exception: {type(e).__name__}: {e}\n"
+                        f"Traceback:\n{tb}"
+                    )
         raise last_error
 
     @traceable(name="openai_chat", run_type="llm")
@@ -76,6 +92,9 @@ class OpenAIClient(BaseLLMClient):
 
         async def _fn():
             data = await self._post(body)
+            logger.debug(f"[openai_client] raw API response: {json.dumps(data, ensure_ascii=False)[:500]}")
+            if "choices" not in data or not data["choices"]:
+                raise RuntimeError(f"Unexpected API response — no choices in data: {json.dumps(data, ensure_ascii=False)[:300]}")
             return data["choices"][0]["message"]["content"] or ""
 
         return await self._retry(_fn, "chat")
@@ -127,6 +146,9 @@ class OpenAIClient(BaseLLMClient):
 
         async def _fn():
             data = await self._post(body)
+            logger.debug(f"[openai_client] raw API response: {json.dumps(data, ensure_ascii=False)[:500]}")
+            if "choices" not in data or not data["choices"]:
+                raise RuntimeError(f"Unexpected API response — no choices in data: {json.dumps(data, ensure_ascii=False)[:300]}")
             content = data["choices"][0]["message"]["content"] or "{}"
             return json.loads(content)
 

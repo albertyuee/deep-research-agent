@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { quickSearch } from '@/api/chat'
+import type { ChatHistoryItem } from '@/api/chat'
 import type { Source } from './research'
 
 export interface ChatMessage {
@@ -23,6 +24,10 @@ export const useChatStore = defineStore('chat', () => {
     error.value = null
     isLoading.value = true
 
+    const history: ChatHistoryItem[] = messages.value
+      .slice(-8)
+      .map((msg) => ({ role: msg.role, content: msg.content }))
+
     const userMsg: ChatMessage = {
       id: `msg-${nextId++}`,
       role: 'user',
@@ -32,7 +37,7 @@ export const useChatStore = defineStore('chat', () => {
     messages.value.push(userMsg)
 
     try {
-      const data = await quickSearch(query)
+      const data = await quickSearch(query, 5, history)
       const assistantMsg: ChatMessage = {
         id: `msg-${nextId++}`,
         role: 'assistant',
