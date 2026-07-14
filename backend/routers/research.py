@@ -6,11 +6,12 @@ import asyncio
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.services.research_service import TaskStatus, task_manager
 from research_agent.streaming import event_bus
 from research_agent.graph import build_graph
+from research_agent.state import ResearchMode
 
 router = APIRouter(prefix="/research", tags=["research"])
 
@@ -21,6 +22,8 @@ agent_graph = build_graph()
 class ResearchRequest(BaseModel):
     query: str
     enable_web_search: bool = False
+    research_mode: ResearchMode = "auto"
+    max_hops: int | None = Field(default=None, ge=1, le=8)
 
 
 class ResearchResponse(BaseModel):
@@ -41,16 +44,23 @@ async def submit_research(req: ResearchRequest):
     task_manager.update_status(task_id, TaskStatus.RUNNING)
 
     # Run agent in background
-    asyncio.create_task(_run_agent(task_id, req.query, req.enable_web_search))
+    asyncio.create_task(_run_agent(
+        task_id,
+        req.query,
+        req.enable_web_search,
+        req.research_mode,
+        req.max_hops,
+    ))
 
     import sys
     web_flag = "ON" if req.enable_web_search else "OFF"
-    print(f"[ROUTER] Task {task_id} submitted, query={req.query[:60]}, web={web_flag}",
+    print(f"[ROUTER] Task {task_id} submitted, query={req.query[:60]}, "
+          f"web={web_flag}, mode={req.research_mode}, max_hops={req.max_hops}",
           flush=True, file=sys.stderr)
 
     return ResearchResponse(
         success=True,
-        data={"task_id": task_id},
+        data={"task_id": task_id, "research_mode": req.research_mode},
     )
 
 
@@ -111,7 +121,13 @@ async def cancel_research(task_id: str):
         raise HTTPException(status_code=500, detail="Failed to cancel task")
 
 
-async def _run_agent(task_id: str, query: str, enable_web_search: bool = False):
+async def _run_agent(
+    task_id: str,
+    query: str,
+    enable_web_search: bool = False,
+    research_mode: ResearchMode = "auto",
+    max_hops: int | None = None,
+):
     """Execute the agent graph for a research task."""
     import sys, time
     current_task = asyncio.current_task()
@@ -125,7 +141,10 @@ async def _run_agent(task_id: str, query: str, enable_web_search: bool = False):
             "query": query,
             "task_id": task_id,
             "enable_web_search": enable_web_search,
+            "research_mode": research_mode,
         }
+        if max_hops is not None:
+            initial_state["max_hops"] = max_hops
         t0 = time.time()
         print(f"[AGENT {task_id}] Calling agent_graph.ainvoke...", flush=True, file=sys.stderr)
         run_config = {
@@ -135,6 +154,8 @@ async def _run_agent(task_id: str, query: str, enable_web_search: bool = False):
                 "task_id": task_id,
                 "query": query[:500],
                 "enable_web_search": enable_web_search,
+                "research_mode": research_mode,
+                "max_hops": max_hops,
             },
         }
         result = await agent_graph.ainvoke(initial_state, config=run_config)
@@ -147,6 +168,10 @@ async def _run_agent(task_id: str, query: str, enable_web_search: bool = False):
             "sub_queries": result.get("sub_queries", []),
             "sources": raw_sources,
             "low_confidence_steps": result.get("low_confidence_steps", []),
+            "hop_count": result.get("hop_count", 0),
+            "reasoning_paths": result.get("reasoning_paths", []),
+            "step_contexts": result.get("step_contexts", {}),
+            "research_mode": result.get("research_mode", research_mode),
         })
         task_manager.update_status(task_id, TaskStatus.COMPLETED)
 
@@ -156,7 +181,7 @@ async def _run_agent(task_id: str, query: str, enable_web_search: bool = False):
         task_manager.update_status(task_id, TaskStatus.CANCELLED)
     except Exception as e:
         task_manager.update_status(task_id, TaskStatus.FAILED, error=str(e))
-        event_bus.emit(task_id, "done", {"error": str(e)})
+        event_bus.emit(task_id, "error", {"message": str(e)})
     finally:
         task_manager.unregister_task(task_id)
-        event_bus.cleanup(task_id)
+        event_bus.schedule_cleanup(task_id)

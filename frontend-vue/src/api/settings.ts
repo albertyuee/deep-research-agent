@@ -15,6 +15,7 @@ export interface EmbeddingSettings {
   api_key: string
   device: string
   dimension: number
+  query_max_chars: number
   api_base_url: string
 }
 
@@ -25,6 +26,13 @@ export interface RetrievalSettings {
   critique_threshold: number
   rrf_k: number
   vector_backend: string
+}
+
+export interface ReasoningSettings {
+  enabled: boolean
+  max_hops: number
+  context_max_chars: number
+  search_query_max_chars: number
 }
 
 export interface MilvusSettings {
@@ -66,6 +74,7 @@ export interface SettingsData {
   llm: LLMSettings
   embedding: EmbeddingSettings
   retrieval: RetrievalSettings
+  reasoning: ReasoningSettings
   rerank: RerankSettings
   milvus: MilvusSettings
   mcp: MCPSettings
@@ -86,7 +95,7 @@ export async function fetchSettings(): Promise<SettingsData> {
 }
 
 export async function updateSettings(
-  patch: Partial<{ llm: Partial<LLMSettings>; embedding: Partial<EmbeddingSettings>; retrieval: Partial<RetrievalSettings>; rerank: Partial<RerankSettings>; milvus: Partial<MilvusSettings>; mcp: Partial<MCPSettings>; langsmith: Partial<LangSmithSettings> }>
+  patch: Partial<{ llm: Partial<LLMSettings>; embedding: Partial<EmbeddingSettings>; retrieval: Partial<RetrievalSettings>; reasoning: Partial<ReasoningSettings>; rerank: Partial<RerankSettings>; milvus: Partial<MilvusSettings>; mcp: Partial<MCPSettings>; langsmith: Partial<LangSmithSettings> }>
 ): Promise<{ updated: string[]; need_restart: boolean }> {
   const resp = await fetch(`${BASE}/settings`, {
     method: 'PATCH',

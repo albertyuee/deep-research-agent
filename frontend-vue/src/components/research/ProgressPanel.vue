@@ -1,18 +1,52 @@
 <template>
   <div class="flex flex-col gap-3">
-    <n-card v-if="store.researchPlan.length" title="研究计划" size="small" :bordered="false">
+    <n-card v-if="store.researchPlan.length" title="研究路径" size="small" :bordered="false" class="plan-card">
       <template #header-extra>
-        <n-tag size="small" type="info">{{ store.researchPlan.length }} 个子问题</n-tag>
-      </template>
-      <div v-for="p in store.researchPlan" :key="p.index" class="mb-2 pb-2 border-b border-gray-100 last:border-0">
         <div class="flex items-center gap-2">
-          <span class="text-sm font-semibold text-gray-700">
-            {{ strategyIcon(p.strategy) }} {{ p.index }}. {{ p.question }}
-          </span>
-          <n-tag :bordered="true" size="tiny">{{ p.strategy }}</n-tag>
+          <n-tag size="small" :type="store.researchMode === 'multihop' ? 'warning' : 'info'">
+            {{ modeLabel(store.researchMode) }}
+          </n-tag>
+          <n-tag size="small" type="info">{{ store.researchPlan.length }} 个子问题</n-tag>
         </div>
-        <div v-if="p.rationale" class="text-xs text-gray-400 mt-1">
-          {{ p.rationale }}
+      </template>
+      <div class="plan-list" :class="{ linked: isLinkedPlan }">
+        <div v-for="(plan, index) in store.researchPlan" :key="plan.index" class="plan-node-wrap">
+          <article class="plan-node" :class="`state-${planStatus(plan)}`">
+            <div class="plan-node-header">
+              <span class="plan-index">{{ plan.index }}</span>
+              <div class="plan-title-wrap">
+                <div class="plan-title">{{ plan.question }}</div>
+                <div class="plan-meta">
+                  <span>{{ strategyIcon(plan.strategy) }} {{ strategyLabel(plan.strategy) }}</span>
+                  <span>Hop {{ plan.hop || 1 }}</span>
+                  <span v-if="plan.dependsOn?.length">依赖 {{ plan.dependsOn.join('、') }}</span>
+                </div>
+              </div>
+              <n-tag size="tiny" :type="planStatusType(planStatus(plan))">
+                {{ planStatusLabel(planStatus(plan)) }}
+              </n-tag>
+            </div>
+            <div v-if="plan.rationale" class="plan-rationale">{{ plan.rationale }}</div>
+          </article>
+          <div v-if="isLinkedPlan && index < store.researchPlan.length - 1" class="dependency-connector">
+            <span>↓</span>
+            <span>传递实体与事实</span>
+          </div>
+        </div>
+      </div>
+    </n-card>
+
+    <n-card v-if="store.reasoningContexts.length" title="多跳上下文" size="small" :bordered="false">
+      <div v-for="context in store.reasoningContexts" :key="context.step" class="mb-3 last:mb-0">
+        <div class="flex items-center gap-2 mb-1">
+          <n-tag size="small" :type="context.lowConfidence ? 'warning' : 'info'">Hop {{ context.hop }}</n-tag>
+          <span class="text-sm text-gray-600">步骤 {{ context.step }}</span>
+          <span class="text-xs text-gray-400">
+            {{ context.entityCount }} 个实体 / {{ context.factCount }} 条事实
+          </span>
+        </div>
+        <div class="text-xs text-gray-500 p-2 bg-gray-50 rounded-lg">
+          {{ context.summary }}
         </div>
       </div>
     </n-card>
@@ -92,10 +126,17 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useResearchStore } from '@/stores/research'
+import { useResearchStore, type PlanItem } from '@/stores/research'
 import ScoreBadge from '@/components/common/ScoreBadge.vue'
 
 const store = useResearchStore()
+
+type PlanStatus = 'waiting' | 'running' | 'retrieved' | 'complete' | 'error'
+
+const isLinkedPlan = computed(() => (
+  store.researchMode === 'multihop'
+  || store.researchPlan.some(plan => Boolean(plan.dependsOn?.length))
+))
 
 const totalTime = computed(() => {
   return Object.values(store.phaseDurations).reduce((a, b) => a + b, 0)
@@ -109,6 +150,55 @@ const strategyIconMap: Record<string, string> = {
 
 function strategyIcon(strategy: string): string {
   return strategyIconMap[strategy] || '\u2753'
+}
+
+function strategyLabel(strategy: string): string {
+  return ({ semantic: '语义检索', keyword: '关键词检索', hybrid: '混合检索' } as Record<string, string>)[strategy] || strategy
+}
+
+function planStatus(plan: PlanItem): PlanStatus {
+  if (store.report || store.phaseStates.synthesis === 'complete') return 'complete'
+
+  const critiqueItems = store.critiqueResults.filter(item => item.step === plan.index)
+  const latestCritique = critiqueItems[critiqueItems.length - 1]
+  if (latestCritique?.passed) return 'complete'
+
+  const isCurrent = store.retrievalProgress?.step === plan.index
+  if (isCurrent && (store.phaseStates.retrieval === 'running' || store.phaseStates.critique === 'running')) {
+    return 'running'
+  }
+
+  const retrievalFinished = store.eventLog.some(event => (
+    event.eventType === 'retrieval_result' && Number(event.data.step) === plan.index
+  ))
+  if (retrievalFinished) return 'retrieved'
+
+  if (isCurrent && store.error) return 'error'
+  return 'waiting'
+}
+
+function planStatusLabel(status: PlanStatus): string {
+  return ({
+    waiting: '等待',
+    running: '执行中',
+    retrieved: '已检索',
+    complete: '完成',
+    error: '异常',
+  } as Record<PlanStatus, string>)[status]
+}
+
+function planStatusType(status: PlanStatus): 'default' | 'info' | 'success' | 'warning' | 'error' {
+  return ({
+    waiting: 'default',
+    running: 'info',
+    retrieved: 'warning',
+    complete: 'success',
+    error: 'error',
+  } as Record<PlanStatus, 'default' | 'info' | 'success' | 'warning' | 'error'>)[status]
+}
+
+function modeLabel(mode: string): string {
+  return ({ auto: '自动规划', parallel: '并列研究', multihop: '多跳推理' } as Record<string, string>)[mode] || mode
 }
 
 function scoreBarClass(score: number): string {
@@ -127,3 +217,104 @@ function timingLabel(key: string): string {
   return timingLabelMap[key] || key.replace('retrieval_', '检索步骤 ')
 }
 </script>
+
+<style scoped>
+.plan-card {
+  border: 1px solid #f0edfa;
+  border-radius: 14px;
+}
+
+.plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plan-node {
+  padding: 10px;
+  border: 1px solid #eceef2;
+  border-radius: 11px;
+  background: #fff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.plan-node.state-running {
+  border-color: #a78bfa;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.08);
+}
+
+.plan-node.state-complete {
+  border-color: #bbf7d0;
+  background: #fbfffc;
+}
+
+.plan-node.state-error {
+  border-color: #fecaca;
+  background: #fffafa;
+}
+
+.plan-node-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.plan-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  border-radius: 8px;
+  background: #ede9fe;
+  color: #6d28d9;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.plan-title-wrap {
+  min-width: 0;
+  flex: 1;
+}
+
+.plan-title {
+  color: #374151;
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.plan-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 9px;
+  margin-top: 5px;
+  color: #9ca3af;
+  font-size: 0.65rem;
+}
+
+.plan-rationale {
+  margin: 8px 0 0 34px;
+  padding-top: 7px;
+  border-top: 1px dashed #eceef2;
+  color: #8b8f98;
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.dependency-connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 22px;
+  color: #8b5cf6;
+  font-size: 0.62rem;
+  font-weight: 600;
+}
+
+.plan-list.linked {
+  gap: 0;
+}
+</style>

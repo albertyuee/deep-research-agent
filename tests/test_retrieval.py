@@ -62,6 +62,22 @@ class TestBM25Retriever:
         assert not bm25.is_indexed
 
 
+class TestEmbeddingQueryLimits:
+    def test_long_query_is_normalized_and_truncated(self):
+        from research_agent.retrieval.embedding import EmbeddingService
+
+        service = EmbeddingService(
+            mode="api",
+            api_key="test-key",
+            query_max_chars=50,
+        )
+
+        prepared = service._prepare_query("  多跳   查询  " + "长" * 100)
+
+        assert len(prepared) == 50
+        assert prepared.startswith("多跳 查询")
+
+
 class TestHybridRetrieval:
     def test_hybrid_result_dataclass(self):
         from research_agent.retrieval.hybrid import HybridResult

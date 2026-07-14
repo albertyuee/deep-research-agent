@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import type { ResearchMode } from '@/api/research'
 
 export type PhaseState = 'waiting' | 'running' | 'complete' | 'error'
 
@@ -8,6 +9,8 @@ export interface PlanItem {
   question: string
   strategy: string
   rationale: string
+  hop?: number
+  dependsOn?: number[]
 }
 
 export interface CritiqueItem {
@@ -58,12 +61,24 @@ export interface WebSearchResultItem {
   score: number
 }
 
+export interface ReasoningContextItem {
+  step: number
+  hop: number
+  dependsOn: number[]
+  summary: string
+  entityCount: number
+  factCount: number
+  lowConfidence: boolean
+}
+
 export const useResearchStore = defineStore('research', () => {
   const query = ref('')
   const taskId = ref<string | null>(null)
   const isRunning = ref(false)
   const isCancelled = ref(false)
   const error = ref<string | null>(null)
+  const researchMode = ref<ResearchMode>('auto')
+  const maxHops = ref(3)
 
   const report = ref('')
   const streamingReport = ref('')
@@ -91,6 +106,7 @@ export const useResearchStore = defineStore('research', () => {
 
   const previousStep = ref('')
   const webSearchResults = ref<WebSearchResultItem[]>([])
+  const reasoningContexts = ref<ReasoningContextItem[]>([])
 
   const currentStep = computed(() => {
     if (isCancelled.value) return 'cancelled'
@@ -136,6 +152,7 @@ export const useResearchStore = defineStore('research', () => {
     phaseStartTimes.value = {}
     previousStep.value = ''
     webSearchResults.value = []
+    reasoningContexts.value = []
   }
 
   function summarizeEvent(eventType: string, data: Record<string, unknown>): string {
@@ -159,6 +176,10 @@ export const useResearchStore = defineStore('research', () => {
         return `触发重试 #${data.count}`
       case 'synthesis_start':
         return `开始生成报告 (${data.total_steps} 步骤聚合)`
+      case 'reasoning_context':
+        return `步骤 ${data.step} 上下文已提取: ${data.entity_count || 0} 个实体, ${data.fact_count || 0} 条事实`
+      case 'reasoning_query':
+        return `Hop ${data.hop || 1} 已生成短查询 (${data.context_chars || 0} → ${data.query_chars || 0} 字符)`
       case 'synthesis_chunk':
         return `报告片段: ${(data.text as string || '').slice(0, 60)}...`
       case 'web_search_start':
@@ -186,6 +207,8 @@ export const useResearchStore = defineStore('research', () => {
       'critique_result': 0.50,
       'retry_triggered': 0.35,
       'synthesis_start': 0.60,
+      'reasoning_context': 0.55,
+      'reasoning_query': 0.56,
       'synthesis_chunk': 0.75,
       'done': 1.0,
       'error': 0,
@@ -232,6 +255,8 @@ export const useResearchStore = defineStore('research', () => {
         }
         phaseStartTimes.value['decomposition'] = Date.now()
         progressValue.value = 0.05
+        researchMode.value = (data.research_mode as ResearchMode) || researchMode.value
+        maxHops.value = (data.max_hops as number) || maxHops.value
         break
 
       case 'research_plan_chunk':
@@ -240,6 +265,8 @@ export const useResearchStore = defineStore('research', () => {
           question: data.question as string,
           strategy: data.strategy as string,
           rationale: data.rationale as string || '',
+          hop: data.hop as number || 1,
+          dependsOn: (data.depends_on as number[]) || [],
         })
         recordPhaseTime('decomposition')
         phaseStates.value.decomposition = 'complete'
@@ -262,6 +289,8 @@ export const useResearchStore = defineStore('research', () => {
         }
         phaseStartTimes.value[`retrieval_${step}`] = Date.now()
         phaseStates.value.retrieval = 'running'
+        phaseStates.value.critique = 'waiting'
+        phaseStates.value.synthesis = 'waiting'
         break
       }
 
@@ -299,7 +328,8 @@ export const useResearchStore = defineStore('research', () => {
         currentDetail.value = `质量评估: ${(data.composite_score as number).toFixed(2)} 分 — ${passed ? '通过' : '不通过'}`
         recordPhaseTime('critique')
         phaseStates.value.critique = 'complete'
-        phaseStates.value.synthesis = passed ? 'running' : 'waiting'
+        // Synthesis starts only after all planned steps are complete.
+        phaseStates.value.synthesis = 'waiting'
         break
       }
 
@@ -310,6 +340,19 @@ export const useResearchStore = defineStore('research', () => {
         phaseStates.value.retrieval = 'running'
         break
       }
+
+      case 'reasoning_context':
+        reasoningContexts.value.push({
+          step: data.step as number,
+          hop: (data.hop as number) || 1,
+          dependsOn: (data.depends_on as number[]) || [],
+          summary: (data.summary as string) || '',
+          entityCount: (data.entity_count as number) || 0,
+          factCount: (data.fact_count as number) || 0,
+          lowConfidence: Boolean(data.low_confidence),
+        })
+        currentDetail.value = `已提取第 ${data.step} 步的研究上下文`
+        break
 
       case 'web_search_result': {
         const results = (data.results as WebSearchResultItem[]) || []
@@ -398,7 +441,7 @@ export const useResearchStore = defineStore('research', () => {
     query.value = q
   }
 
-  function startResearch(tid: string) {
+  function startResearch(tid: string, mode: ResearchMode = 'auto', hops: number = 3) {
     taskId.value = tid
     isRunning.value = true
     isCancelled.value = false
@@ -406,6 +449,8 @@ export const useResearchStore = defineStore('research', () => {
     report.value = ''
     streamingReport.value = ''
     sources.value = []
+    researchMode.value = mode
+    maxHops.value = hops
   }
 
   function setSources(s: Source[]) {
@@ -418,11 +463,12 @@ export const useResearchStore = defineStore('research', () => {
   }
 
   return {
-    query, taskId, isRunning, isCancelled, error,
+    query, taskId, isRunning, isCancelled, error, researchMode, maxHops,
     report, streamingReport, sources,
     phaseStates, progressValue, currentDetail,
     researchPlan, critiqueResults, retrievalProgress, eventLog, retryHistory,
     startedAt, phaseDurations, phaseStartTimes, previousStep, webSearchResults,
+    reasoningContexts,
     currentStep, phaseLabels,
     reset, handleEvent, setQuery, startResearch, setSources, setFinalReport,
   }

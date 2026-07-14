@@ -1,5 +1,7 @@
 const BASE = '/api/v1'
 
+export type ResearchMode = 'auto' | 'parallel' | 'multihop'
+
 export interface TaskResponse {
   success: boolean
   data: {
@@ -23,6 +25,8 @@ export interface TaskResponse {
 export async function submitResearch(
   query: string,
   enableWebSearch: boolean = false,
+  researchMode: ResearchMode = 'auto',
+  maxHops: number = 3,
 ): Promise<string> {
   const resp = await fetch(`${BASE}/research`, {
     method: 'POST',
@@ -30,6 +34,8 @@ export async function submitResearch(
     body: JSON.stringify({
       query,
       enable_web_search: enableWebSearch,
+      research_mode: researchMode,
+      max_hops: maxHops,
     }),
   })
   if (!resp.ok) {

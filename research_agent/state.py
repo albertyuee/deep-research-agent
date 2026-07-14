@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Annotated, TypedDict
+from typing import Annotated, Literal, TypedDict
+
+
+ResearchMode = Literal["auto", "parallel", "multihop"]
 
 
 class RetrievalStep(TypedDict, total=False):
@@ -19,6 +22,8 @@ class ResearchState(TypedDict, total=False):
     query: str
     task_id: str
     enable_web_search: bool
+    research_mode: ResearchMode
+    reasoning_enabled: bool
 
     # Decomposition
     sub_queries: list[dict]
@@ -38,6 +43,16 @@ class ResearchState(TypedDict, total=False):
     # Retry
     retry_history: list[dict]
     low_confidence_steps: list[int]
+    max_retries: int
+
+    # Multi-hop reasoning
+    completed_steps: list[int]
+    step_contexts: dict[str, dict]
+    step_results: dict[str, list[dict]]
+    step_critiques: dict[str, dict]
+    reasoning_paths: list[list[int]]
+    hop_count: int
+    max_hops: int
 
     # Synthesis
     aggregated_findings: list[dict]

@@ -46,6 +46,7 @@ class EmbeddingService:
         device: str | None = None,
         api_base_url: str | None = None,
         api_key: str | None = None,
+        query_max_chars: int | None = None,
     ):
         settings = _get_settings()
         
@@ -54,6 +55,11 @@ class EmbeddingService:
         self.device = device or settings.embedding.device
         self.api_base_url = api_base_url or settings.embedding.api_base_url
         self.api_key = api_key or settings.embedding.api_key
+        self.query_max_chars = (
+            query_max_chars
+            if query_max_chars is not None
+            else settings.embedding.query_max_chars
+        )
 
         if self.mode == "api" and not self.api_key:
             self.mode = "local"
@@ -89,7 +95,11 @@ class EmbeddingService:
             )
             if not response.is_success:
                 detail = response.text[:500]
-                print(f"[EMBED] ERROR {response.status_code}: {detail}", flush=True)
+                print(
+                    f"[EMBED] ERROR {response.status_code}: model={self.model_name}, "
+                    f"max_chars={max_chars}, response={detail}",
+                    flush=True,
+                )
                 response.raise_for_status()
             result = response.json()
             embeddings.extend([item["embedding"] for item in result["data"]])
@@ -116,11 +126,22 @@ class EmbeddingService:
     )
     def embed_query(self, query: str) -> np.ndarray:
         """Generate embedding for a single query."""
+        prepared_query = self._prepare_query(query)
         if self.mode == "api":
-            result = self._embed_api([query])
+            result = self._embed_api([prepared_query])
             return result[0]
         model = _get_local_model()
-        return model.encode([query], normalize_embeddings=True)[0]
+        return model.encode([prepared_query], normalize_embeddings=True)[0]
+
+    def _prepare_query(self, query: str) -> str:
+        """Bound query size before it reaches a model-specific token limit."""
+        normalized = " ".join(query.split())
+        if len(normalized) > self.query_max_chars:
+            print(
+                f"[EMBED] query truncated: {len(normalized)} -> {self.query_max_chars} chars",
+                flush=True,
+            )
+        return normalized[: self.query_max_chars]
 
     @property
     def dimension(self) -> int:

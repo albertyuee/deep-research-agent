@@ -3,7 +3,7 @@
     <n-layout has-sider position="absolute" style="height: 100vh;">
       <SideNav />
       <n-layout-content>
-        <div class="p-6 max-w-[1400px] mx-auto">
+        <div class="content-shell max-w-[1400px] mx-auto">
           <router-view v-slot="{ Component }">
             <keep-alive>
               <component :is="Component" />
@@ -29,3 +29,15 @@ const themeOverrides = {
   },
 }
 </script>
+
+<style scoped>
+.content-shell {
+  padding: 24px;
+}
+
+@media (max-width: 768px) {
+  .content-shell {
+    padding: 14px 12px 28px;
+  }
+}
+</style>

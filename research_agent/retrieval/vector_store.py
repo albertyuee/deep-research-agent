@@ -196,6 +196,38 @@ class MilvusVectorStore:
             output_fields=["chunk_id", "text", "*"],
         )
 
+        # Milvus search responses do not consistently expand dynamic fields
+        # when ``*`` is mixed with explicit output fields. Fetch the matched
+        # rows once so citations retain file_name/source/upload_id metadata.
+        matched_chunk_ids = [
+            hit.get("entity", {}).get("chunk_id", "")
+            for hit_list in results
+            for hit in hit_list
+            if hit.get("entity", {}).get("chunk_id")
+        ]
+        metadata_by_chunk_id: dict[str, dict] = {}
+        if matched_chunk_ids:
+            literals = ", ".join(self._string_literal(value) for value in matched_chunk_ids)
+            try:
+                rows = client.query(
+                    collection_name=self._collection_name,
+                    filter=f"chunk_id in [{literals}]",
+                    output_fields=["chunk_id", "*"],
+                    limit=len(matched_chunk_ids),
+                )
+                metadata_by_chunk_id = {
+                    row.get("chunk_id", ""): {
+                        key: value
+                        for key, value in row.items()
+                        if key not in ("chunk_id", "text", "vector", "id")
+                    }
+                    for row in rows
+                    if row.get("chunk_id")
+                }
+            except Exception:
+                # Search results remain usable even if metadata lookup fails.
+                metadata_by_chunk_id = {}
+
         output = []
         for hit_list in results:
             for hit in hit_list:
@@ -203,13 +235,15 @@ class MilvusVectorStore:
                 chunk_id = entity.get("chunk_id", "")
                 content = entity.get("text", "")
 
-                # Milvus returns distance (COSINE: 0=identical, 2=opposite)
-                distance = hit.get("distance", 1.0)
-                score = max(0.0, 1.0 - distance)
+                # Milvus returns the metric value in ``distance``. For COSINE
+                # this is already a similarity score (higher is better), not
+                # a distance that should be inverted.
+                similarity = hit.get("distance", 0.0)
+                score = max(0.0, min(1.0, float(similarity)))
 
-                metadata = {
+                metadata = metadata_by_chunk_id.get(chunk_id) or {
                     k: v for k, v in entity.items()
-                    if k not in ("chunk_id", "text", "vector")
+                    if k not in ("chunk_id", "text", "vector", "id")
                 }
 
                 output.append(

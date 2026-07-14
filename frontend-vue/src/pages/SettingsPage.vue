@@ -139,6 +139,9 @@
             <FormField label="API Key" v-if="form.embedding.mode === 'api'" class="col-span-2">
               <n-input v-model:value="form.embedding.api_key" type="password" show-password-on="click" size="medium" placeholder="留空则不修改" />
             </FormField>
+            <FormField label="检索查询字符上限" v-if="form.embedding.mode === 'api'">
+              <n-input-number v-model:value="form.embedding.query_max_chars" size="medium" :min="100" :max="2000" :step="50" class="w-full" />
+            </FormField>
           </div>
         </SettingsSection>
 
@@ -204,6 +207,23 @@
             </FormField>
             <FormField :label="`RRF 融合参数 K: ${form.retrieval.rrf_k}`">
               <n-slider v-model:value="form.retrieval.rrf_k" :min="0" :max="120" :step="1" />
+            </FormField>
+          </div>
+        </SettingsSection>
+
+        <SettingsSection title="Multi-hop 多跳推理">
+          <div class="grid grid-cols-3 gap-x-6 gap-y-4">
+            <FormField label="启用多跳推理">
+              <n-switch v-model:value="form.reasoning.enabled" />
+            </FormField>
+            <FormField label="最大推理跳数">
+              <n-input-number v-model:value="form.reasoning.max_hops" size="medium" :min="1" :max="8" class="w-full" />
+            </FormField>
+            <FormField label="上下文字符上限">
+              <n-input-number v-model:value="form.reasoning.context_max_chars" size="medium" :min="500" :max="10000" :step="500" class="w-full" />
+            </FormField>
+            <FormField label="检索短查询字符上限">
+              <n-input-number v-model:value="form.reasoning.search_query_max_chars" size="medium" :min="100" :max="1000" :step="50" class="w-full" />
             </FormField>
           </div>
         </SettingsSection>
@@ -315,8 +335,9 @@ function testLangSmith() { runTest('langsmith') }
 
 const form = reactive({
   llm: { provider: 'siliconflow', model: '', api_key: '', base_url: '', temperature: 0.3, max_tokens: 4096 },
-  embedding: { mode: 'api', model: '', api_key: '', device: 'cpu', api_base_url: '' },
+  embedding: { mode: 'api', model: '', api_key: '', device: 'cpu', api_base_url: '', query_max_chars: 500 },
   retrieval: { top_k: 5, max_retries: 3, critique_threshold: 0.6, rrf_k: 60, vector_backend: 'chroma' },
+  reasoning: { enabled: true, max_hops: 3, context_max_chars: 3000, search_query_max_chars: 400 },
   rerank: { enabled: false, provider: 'siliconflow', model: 'Qwen/Qwen3-Reranker-8B', api_key: '', base_url: 'https://api.siliconflow.cn/v1', top_n: 5, candidate_multiplier: 4, timeout: 30, instruction: '请根据查询内容判断文档与查询的相关性，并按相关性从高到低排序。' },
   milvus: { uri: '', token: '', host: 'localhost', port: 19530, collection_name: 'research_docs' },
   mcp: { web_search_enabled: false, tavily_api_key: '', tavily_max_results: 5, web_search_timeout: 30.0 },
@@ -328,6 +349,7 @@ watch(() => store.settings, (s) => {
     Object.assign(form.llm, s.llm)
     Object.assign(form.embedding, s.embedding)
     Object.assign(form.retrieval, s.retrieval)
+    if ((s as any).reasoning) Object.assign(form.reasoning, (s as any).reasoning)
     if ((s as any).rerank) Object.assign(form.rerank, (s as any).rerank)
     if ((s as any).milvus) Object.assign(form.milvus, (s as any).milvus)
     if ((s as any).mcp) Object.assign(form.mcp, (s as any).mcp)
@@ -342,6 +364,7 @@ function onSave() {
     llm: form.llm,
     embedding: form.embedding,
     retrieval: form.retrieval,
+    reasoning: form.reasoning,
     rerank: form.rerank,
     milvus: form.retrieval.vector_backend === 'milvus' ? form.milvus : undefined,
     mcp: form.mcp,

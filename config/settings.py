@@ -56,6 +56,7 @@ class EmbeddingSettings(BaseSettings):
     model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     device: str = "cpu"
     dimension: int = 384
+    query_max_chars: int = 500
     api_base_url: str = "https://api.siliconflow.cn/v1"
     api_key: str = ""
 
@@ -110,6 +111,19 @@ class RetrievalSettings(BaseSettings):
     critique_threshold: float = 0.6
     rrf_k: int = 60
     vector_backend: Literal["milvus", "chroma"] = "chroma"
+
+
+class ReasoningSettings(BaseSettings):
+    model_config = {
+        "env_prefix": "REASONING_",
+        "env_file": ENV_FILE,
+        "extra": "ignore",
+    }
+
+    enabled: bool = True
+    max_hops: int = 3
+    context_max_chars: int = 3000
+    search_query_max_chars: int = 400
 
 
 class RerankSettings(BaseSettings):
@@ -168,6 +182,7 @@ class Settings(BaseSettings):
     milvus: MilvusSettings = Field(default_factory=MilvusSettings)
     chroma: ChromaSettings = Field(default_factory=ChromaSettings)
     retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
+    reasoning: ReasoningSettings = Field(default_factory=ReasoningSettings)
     rerank: RerankSettings = Field(default_factory=RerankSettings)
     mcp: MCPSettings = Field(default_factory=MCPSettings)
     langsmith: LangSmithSettings = Field(default_factory=LangSmithSettings)
@@ -180,7 +195,9 @@ settings = Settings()
 
 
 def reload_settings():
-    """Reload settings from .env after changes. Rebuild the singleton."""
-    global settings
+    """Reload settings in place so imported references see new values."""
     load_env()
-    settings = Settings()
+    refreshed = Settings()
+    for field_name in Settings.model_fields:
+        setattr(settings, field_name, getattr(refreshed, field_name))
+    return settings

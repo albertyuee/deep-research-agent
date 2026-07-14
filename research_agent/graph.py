@@ -18,21 +18,26 @@ import time as _time
 
 from langgraph.graph import StateGraph, END
 
-from research_agent.state import ResearchState
+from research_agent.state import ResearchMode, ResearchState
 from research_agent.streaming import event_bus
 from research_agent.llm.factory import create_llm_client
 from research_agent.planner.decomposer import decompose_query
 from research_agent.planner.research_plan import ResearchPlan
 from research_agent.retrieval.strategy import select_strategy
 from research_agent.retrieval.hybrid import HybridRetriever
-from research_agent.retrieval.vector_store import VectorStore, create_vector_store
 from research_agent.retrieval.bm25 import BM25Retriever
+from research_agent.retrieval.service import retrieval_service
 from research_agent.retrieval.rewriter import rewrite_query, RewriteAction
 from research_agent.critique.scorer import critique_retrieval
 from research_agent.critique.retry_controller import RetryState
+from research_agent.reasoning.context import (
+    build_contextual_search_query,
+    extract_step_context,
+    render_step_context,
+)
 from research_agent.synthesis.aggregator import aggregate_results
 from research_agent.synthesis.report_generator import generate_report_streaming
-from research_agent.synthesis.citation import build_citation_map, build_references_section, format_citation, Citation
+from research_agent.synthesis.citation import build_citation_map, build_references_section
 from config.settings import settings
 
 # Debug helper — prints to stderr (captured by uvicorn log)
@@ -48,21 +53,57 @@ async def decomposition_node(state: ResearchState) -> ResearchState:
     task_id = state.get("task_id", "")
     query = state["query"]
     enable_web_search = state.get("enable_web_search", False)
+    research_mode: ResearchMode = state.get("research_mode", "auto")
+    max_hops = state.get("max_hops", settings.reasoning.max_hops)
+    reasoning_enabled = (
+        research_mode == "multihop"
+        or (research_mode == "auto" and settings.reasoning.enabled)
+    )
 
     _dbg(task_id, "decomposition_node ENTER")
-    emit(task_id, "research_plan_start", {"query": query, "progress": 0.05})
+    emit(task_id, "research_plan_start", {
+        "query": query,
+        "research_mode": research_mode,
+        "max_hops": max_hops,
+        "progress": 0.05,
+    })
 
     _dbg(task_id, "creating LLM client...")
     client = create_llm_client()
     _dbg(task_id, f"calling decompose_query (model={client.model}, web={enable_web_search})...")
     t0 = _time.time()
     try:
-        sub_queries = await decompose_query(client, query, enable_web_search)
+        sub_queries = await decompose_query(
+            client,
+            query,
+            enable_web_search,
+            research_mode,
+            max_hops,
+        )
         _dbg(task_id, f"decompose_query OK after {_time.time()-t0:.1f}s, {len(sub_queries)} sub-queries")
     except Exception as e:
         _dbg(task_id, f"decompose_query FAILED after {_time.time()-t0:.1f}s: {e}")
         raise
 
+    # A provider failure or malformed structured response should still produce
+    # a useful single-step research task instead of crashing in critique_node.
+    if not sub_queries:
+        sub_queries = [{
+            "index": 1,
+            "question": query,
+            "strategy": "hybrid",
+            "data_source": "local",
+            "rationale": "Fallback to the original query.",
+        }]
+
+    plan = ResearchPlan.from_decomposition(query, sub_queries)
+    sub_queries = _normalize_sub_queries(
+        sub_queries,
+        plan,
+        research_mode,
+        reasoning_enabled,
+        max_hops,
+    )
     plan = ResearchPlan.from_decomposition(query, sub_queries)
 
     total_sub = len(sub_queries)
@@ -74,6 +115,8 @@ async def decomposition_node(state: ResearchState) -> ResearchState:
             "strategy": sq["strategy"],
             "data_source": sq.get("data_source", "local"),
             "rationale": sq.get("rationale", ""),
+            "hop": sq.get("hop", 1),
+            "depends_on": sq.get("depends_on", []),
             "progress": p,
         })
 
@@ -86,6 +129,16 @@ async def decomposition_node(state: ResearchState) -> ResearchState:
     state["retry_count"] = 0
     state["retry_history"] = []
     state["low_confidence_steps"] = []
+    state["max_retries"] = settings.retrieval.max_retries
+    state["research_mode"] = research_mode
+    state["reasoning_enabled"] = reasoning_enabled
+    state["completed_steps"] = []
+    state["step_contexts"] = {}
+    state["step_results"] = {}
+    state["step_critiques"] = {}
+    state["reasoning_paths"] = []
+    state["hop_count"] = 0
+    state["max_hops"] = max_hops
 
     _dbg(task_id, "decomposition_node EXIT")
     return state
@@ -111,9 +164,25 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
     sub_q = sub_queries[step_idx]
     query = sub_q["question"]
     data_source = sub_q.get("data_source", "local")
+    client = create_llm_client()
+
+    dependency_contexts = [
+        state.get("step_contexts", {}).get(str(dep), {})
+        for dep in sub_q.get("depends_on", [])
+    ]
+    available_contexts = [context for context in dependency_contexts if context]
+    if available_contexts and state.get("reasoning_enabled", settings.reasoning.enabled):
+        rendered_context = render_step_context(available_contexts)
+        query = await build_contextual_search_query(client, query, available_contexts)
+        emit(task_id, "reasoning_query", {
+            "step": step_idx + 1,
+            "hop": sub_q.get("hop", 1),
+            "context_chars": len(rendered_context),
+            "query": query,
+            "query_chars": len(query),
+        })
 
     # Determine strategy — on retry, may switch strategy
-    client = create_llm_client()
     if retry_count == 0:
         strategy = sub_q.get("strategy", "hybrid")
     elif retry_count == 2:  # 2nd retry: switch strategy
@@ -293,6 +362,7 @@ async def critique_node(state: ResearchState) -> ResearchState:
         "relevance": critique.relevance_score,
         "completeness": critique.completeness_score,
         "passed": critique.passed,
+        "reasoning": critique.reasoning,
         "retry_suggestion": critique.retry_suggestion,
         "progress": crit_res_progress,
     })
@@ -301,22 +371,80 @@ async def critique_node(state: ResearchState) -> ResearchState:
     retry_count = state.get("retry_count", 0)
     max_retries = state.get("max_retries", settings.retrieval.max_retries)
 
+    should_finalize = critique.passed or retry_count >= max_retries
     if critique.passed:
         _save_step_results(state)
-        state["current_step"] = step_idx + 1
         state["retry_count"] = 0
-    elif retry_count < max_retries - 1:
+    elif retry_count < max_retries:
         state["retry_count"] = retry_count + 1
         state["retry_history"].append({
             "step": step_idx,
             "attempt": retry_count + 1,
             "score": critique.composite_score,
         })
+        emit(task_id, "retry_triggered", {
+            "step": step_idx + 1,
+            "count": retry_count + 1,
+            "suggestion": critique.retry_suggestion,
+            "progress": crit_res_progress,
+        })
     else:
         state["low_confidence_steps"].append(step_idx + 1)
         _save_step_results(state)
-        state["current_step"] = step_idx + 1
         state["retry_count"] = 0
+
+    if should_finalize:
+        step_number = step_idx + 1
+        completed_steps = state.setdefault("completed_steps", [])
+        if step_number not in completed_steps:
+            completed_steps.append(step_number)
+
+        dependent_steps = [
+            item for item in state["sub_queries"]
+            if step_number in item.get("depends_on", [])
+        ]
+        if dependent_steps and state.get("reasoning_enabled", settings.reasoning.enabled):
+            try:
+                context = await extract_step_context(
+                    client,
+                    state["query"],
+                    sub_q["question"],
+                    results,
+                )
+            except Exception as exc:
+                _dbg(task_id, f"Step context extraction failed: {exc}")
+                context = {
+                    "summary": "\n".join(
+                        (item.get("content") or "")[:500] for item in results[:3]
+                    ),
+                    "entities": [],
+                    "facts": [],
+                    "open_questions": [],
+                    "source_ids": [
+                        str(item.get("chunk_id", "unknown")) for item in results[:5]
+                    ],
+                }
+            context["quality_score"] = critique.composite_score
+            context["low_confidence"] = not critique.passed
+            state.setdefault("step_contexts", {})[str(step_number)] = context
+            emit(task_id, "reasoning_context", {
+                "step": step_number,
+                "hop": sub_q.get("hop", 1),
+                "depends_on": sub_q.get("depends_on", []),
+                "summary": context.get("summary", ""),
+                "entity_count": len(context.get("entities", [])),
+                "fact_count": len(context.get("facts", [])),
+                "low_confidence": context.get("low_confidence", False),
+                "progress": crit_res_progress,
+            })
+
+        state["hop_count"] = max(
+            state.get("hop_count", 0), int(sub_q.get("hop", 1))
+        )
+        state.setdefault("reasoning_paths", []).append(
+            [*sub_q.get("depends_on", []), step_number]
+        )
+        _advance_to_next_step(state)
 
     return state
 
@@ -331,8 +459,16 @@ async def synthesis_node(state: ResearchState) -> ResearchState:
     emit(task_id, "synthesis_start", {"total_steps": state["total_steps"], "progress": 0.60})
 
     sub_queries = state["sub_queries"]
-    all_results = state["all_retrieval_results"]
-    all_critiques = state["all_critique_results"]
+    step_results = state.get("step_results", {})
+    step_critiques = state.get("step_critiques", {})
+    all_results = [
+        step_results.get(str(index + 1), [])
+        for index in range(len(sub_queries))
+    ]
+    all_critiques = [
+        step_critiques.get(str(index + 1), {})
+        for index in range(len(sub_queries))
+    ]
 
     # Ensure we have results for all steps (pad if needed)
     while len(all_results) < len(sub_queries):
@@ -340,7 +476,12 @@ async def synthesis_node(state: ResearchState) -> ResearchState:
 
     # Aggregate
     sq_texts = [sq["question"] for sq in sub_queries]
-    findings = aggregate_results(sq_texts, all_results, all_critiques)
+    findings = aggregate_results(
+        sq_texts,
+        all_results,
+        all_critiques,
+        state.get("step_contexts", {}),
+    )
     state["aggregated_findings"] = [f.__dict__ for f in findings]
 
     # Build citation map from all sources
@@ -405,8 +546,100 @@ def _save_step_results(state: ResearchState) -> None:
     all_results.append(state.get("retrieval_results", []))
     all_critiques.append(state.get("critique_result", {}))
 
+    step_number = state.get("current_step", 0) + 1
+    state.setdefault("step_results", {})[str(step_number)] = state.get(
+        "retrieval_results", []
+    )
+    state.setdefault("step_critiques", {})[str(step_number)] = state.get(
+        "critique_result", {}
+    )
+
     state["all_retrieval_results"] = all_results
     state["all_critique_results"] = all_critiques
+
+
+def _normalize_sub_queries(
+    sub_queries: list[dict],
+    plan: ResearchPlan,
+    research_mode: ResearchMode,
+    reasoning_enabled: bool,
+    max_hops: int,
+) -> list[dict]:
+    """Apply task-level research mode without relying on global settings."""
+    normalized_sub_queries: list[dict] = []
+
+    for position, (raw, step) in enumerate(zip(sub_queries, plan.steps)):
+        step_number = position + 1
+        dependencies = [
+            int(dep)
+            for dep in step.depends_on
+            if 1 <= int(dep) < step_number
+        ] if reasoning_enabled else []
+
+        if research_mode == "multihop" and position > 0 and not dependencies:
+            dependencies = [position]
+
+        hop = 1
+        if reasoning_enabled:
+            parent_hops = [
+                int(normalized_sub_queries[dep - 1].get("hop", 1))
+                for dep in dependencies
+                if dep <= len(normalized_sub_queries)
+            ]
+            inferred_hop = max(parent_hops, default=0) + 1 if dependencies else 1
+            hop = min(max(step.hop, inferred_hop), max_hops)
+
+        normalized = dict(raw)
+        normalized.update({
+            "index": step_number,
+            "hop": hop,
+            "depends_on": dependencies,
+            "input_slots": step.input_slots if dependencies else [],
+            "terminal": step.terminal,
+        })
+        normalized_sub_queries.append(normalized)
+
+    return normalized_sub_queries
+
+
+def _advance_to_next_step(state: ResearchState) -> None:
+    """Select the first pending step whose dependencies are complete."""
+    completed = set(state.get("completed_steps", []))
+    total = len(state.get("sub_queries", []))
+    max_hops = state.get("max_hops", settings.reasoning.max_hops)
+
+    for index, step in enumerate(state.get("sub_queries", [])):
+        step_number = index + 1
+        if step_number in completed:
+            continue
+        if int(step.get("hop", 1)) > max_hops:
+            continue
+        dependencies = {
+            int(dep) for dep in step.get("depends_on", []) if str(dep).isdigit()
+        }
+        if dependencies.issubset(completed):
+            state["current_step"] = index
+            return
+
+    # Preserve a safe linear fallback if an otherwise eligible plan step has
+    # malformed dependencies; steps beyond the configured hop budget are not run.
+    for index, step in enumerate(state.get("sub_queries", [])):
+        if (
+            index + 1 not in completed
+            and int(step.get("hop", 1)) <= max_hops
+        ):
+            state["current_step"] = index
+            return
+
+    skipped_steps = [
+        index + 1
+        for index, step in enumerate(state.get("sub_queries", []))
+        if index + 1 not in completed and int(step.get("hop", 1)) > max_hops
+    ]
+    for step_number in skipped_steps:
+        if step_number not in state.setdefault("low_confidence_steps", []):
+            state["low_confidence_steps"].append(step_number)
+    state["current_step"] = total
 
 
 # ──────────────────── Graph Construction ────────────────────
@@ -447,22 +680,12 @@ def build_graph() -> StateGraph:
 # ──────────────────── Helpers ────────────────────
 
 
-_vector_store: VectorStore | None = None
-_bm25: BM25Retriever | None = None
-
-
 def _get_vector_store():
-    global _vector_store
-    if _vector_store is None:
-        _vector_store = create_vector_store()
-    return _vector_store
+    return retrieval_service.get_vector_store()
 
 
 def _get_bm25() -> BM25Retriever:
-    global _bm25
-    if _bm25 is None:
-        _bm25 = BM25Retriever()
-    return _bm25
+    return retrieval_service.get_bm25()
 
 
 def emit(task_id: str, event_type: str, data: dict | None = None) -> None:

@@ -4,9 +4,14 @@ from typing import Literal
 
 from research_agent.llm.base import BaseLLMClient
 from config.settings import settings
+from research_agent.state import ResearchMode
 
 
-def _build_system_prompt(enable_web_search: bool = False) -> str:
+def _build_system_prompt(
+    enable_web_search: bool = False,
+    research_mode: ResearchMode = "auto",
+    max_hops: int = 3,
+) -> str:
     """Build the decomposition prompt.
 
     enable_web_search: Whether web search is enabled by the user.
@@ -22,14 +27,30 @@ def _build_system_prompt(enable_web_search: bool = False) -> str:
         '- "both": 当前不可用，请勿选择。如需联网信息，选择 "local"'
     )
 
-    return f"""你是一个专业的研究规划助手。你的任务是将用户提出的复杂问题拆解为 2-5 个原子化的子问题。
+    mode_instructions = {
+        "auto": (
+            "自动规划：可以独立回答的步骤使用 depends_on=[]；只有确实需要前序实体或事实时才建立依赖。"
+        ),
+        "parallel": (
+            "并列研究：所有步骤必须互相独立，统一使用 hop=1、depends_on=[]、input_slots=[]。"
+        ),
+        "multihop": (
+            "多跳推理：除第一步外，后续步骤应尽量依赖前序步骤的实体或事实；"
+            "至少生成一条依赖关系，并确保 hop 不超过最大跳数。"
+        ),
+    }
+    mode_instruction = mode_instructions[research_mode]
+
+    return f"""你是一个专业的研究规划助手。你的任务是将用户提出的复杂问题拆解为 2-5 个研究步骤。
 
 拆解原则：
-1. 每个子问题必须可以独立回答，不依赖其他子问题的结果
+1. 当前研究模式：{research_mode}。{mode_instruction}
 2. 子问题之间应覆盖原问题的所有方面，没有遗漏
 3. 子问题按逻辑顺序排列（从基础到深入、从一般到具体）
 4. 如果原问题很简单，返回 1 个子问题即可，不要强行拆解
-5. 每个子问题必须标注推荐的检索策略和资料来源
+5. 每个步骤必须标注推荐的检索策略、资料来源和 hop
+6. 多跳步骤的 question 可以使用前序步骤产出的实体/事实，input_slots 写明需要哪些信息
+7. 最大允许跳数为 {max_hops}
 
 检索策略（strategy）：
 - "semantic"：语义向量检索，适合概念性、开放性、需要理解语义的问题
@@ -48,7 +69,22 @@ def _build_system_prompt(enable_web_search: bool = False) -> str:
       "question": "子问题文本",
       "strategy": "semantic",
       "data_source": "local",
-      "rationale": "选择该策略和资料源的理由"
+      "rationale": "选择该策略和资料源的理由",
+      "hop": 1,
+      "depends_on": [],
+      "input_slots": [],
+      "terminal": false
+    }}}},
+    {{{{
+      "index": 2,
+      "question": "基于第 1 步得到的实体，继续回答……",
+      "strategy": "hybrid",
+      "data_source": "local",
+      "rationale": "需要使用前一步实体",
+      "hop": 2,
+      "depends_on": [1],
+      "input_slots": ["entities", "facts"],
+      "terminal": true
     }}}}
   ]
 }}}}"""
@@ -58,6 +94,8 @@ async def decompose_query(
     client: BaseLLMClient,
     query: str,
     enable_web_search: bool = False,
+    research_mode: ResearchMode = "auto",
+    max_hops: int = 3,
 ) -> list[dict]:
     """Decompose a complex query into atomic sub-questions.
 
@@ -71,7 +109,14 @@ async def decompose_query(
         data_source, and rationale.
     """
     messages = [
-        {"role": "system", "content": _build_system_prompt(enable_web_search)},
+        {
+            "role": "system",
+            "content": _build_system_prompt(
+                enable_web_search,
+                research_mode,
+                max_hops,
+            ),
+        },
         {"role": "user", "content": f"请拆解以下问题：\n{query}"},
     ]
 
@@ -94,6 +139,16 @@ async def decompose_query(
                             "enum": ["local", "web", "both"],
                         },
                         "rationale": {"type": "string"},
+                        "hop": {"type": "integer", "minimum": 1},
+                        "depends_on": {
+                            "type": "array",
+                            "items": {"type": "integer", "minimum": 1},
+                        },
+                        "input_slots": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
+                        "terminal": {"type": "boolean"},
                     },
                     "required": ["index", "question", "strategy", "data_source", "rationale"],
                 },

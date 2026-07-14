@@ -25,10 +25,10 @@ defineEmits<{
 }>()
 
 const suggestions = [
-  '什么是Transformer架构？',
-  '量子计算有哪些应用？',
-  'CRISPR技术原理是什么？',
-  '固态电池的优势有哪些？',
-  '深度学习与机器学习有什么区别？',
+  'GraphRAG 主要解决什么问题？',
+  'LangGraph 如何保存 Agent 的运行状态？',
+  'Chroma 适合承担哪些向量存储任务？',
+  'Qdrant 支持哪些向量检索能力？',
+  'HotpotQA 中 supporting facts 有什么作用？',
 ]
 </script>

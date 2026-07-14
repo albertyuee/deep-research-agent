@@ -20,7 +20,7 @@ if str(_project_root) not in sys.path:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Index documents from a directory into Chroma vector store and BM25.",
+        description="Index documents from a directory into the configured vector store.",
     )
     parser.add_argument(
         "directory",
@@ -47,7 +47,6 @@ def main() -> None:
 
     from research_agent.retrieval.document_loader import DocumentLoader
     from research_agent.retrieval.vector_store import create_vector_store
-    from research_agent.retrieval.bm25 import BM25Retriever
 
     # 1. Load all documents
     loader = DocumentLoader(min_chunk_length=args.min_chunk_length)
@@ -81,11 +80,9 @@ def main() -> None:
     vs.add_documents(chunk_ids, texts, metadatas)
     print(f"  Vector store: {vs.count} documents total")
 
-    # 3. Index to BM25
-    print("Indexing to BM25...")
-    bm25 = BM25Retriever()
-    bm25.index_documents(chunk_ids, texts, metadatas)
-    print(f"  BM25: {len(chunks)} documents indexed")
+    # BM25 is rebuilt from the persistent vector store by the shared runtime
+    # retrieval service, so it remains consistent across API entry points.
+    print("  BM25: rebuilt automatically when the service starts")
 
     print("\nDone.")
 

@@ -38,6 +38,7 @@ def _get_embedding_settings() -> dict:
         "model": app_settings.embedding.model,
         "device": app_settings.embedding.device,
         "dimension": app_settings.embedding.dimension,
+        "query_max_chars": app_settings.embedding.query_max_chars,
         "api_base_url": app_settings.embedding.api_base_url,
         "api_key": _mask_key(app_settings.embedding.api_key),
     }
@@ -51,6 +52,15 @@ def _get_retrieval_settings() -> dict:
         "critique_threshold": app_settings.retrieval.critique_threshold,
         "rrf_k": app_settings.retrieval.rrf_k,
         "vector_backend": app_settings.retrieval.vector_backend,
+    }
+
+
+def _get_reasoning_settings() -> dict:
+    return {
+        "enabled": app_settings.reasoning.enabled,
+        "max_hops": app_settings.reasoning.max_hops,
+        "context_max_chars": app_settings.reasoning.context_max_chars,
+        "search_query_max_chars": app_settings.reasoning.search_query_max_chars,
     }
 
 
@@ -146,6 +156,7 @@ async def get_settings():
             "llm": _get_llm_settings(),
             "embedding": _get_embedding_settings(),
             "retrieval": _get_retrieval_settings(),
+            "reasoning": _get_reasoning_settings(),
             "rerank": _get_rerank_settings(),
             "milvus": _get_milvus_settings(),
             "mcp": _get_mcp_settings(),
@@ -172,11 +183,16 @@ async def update_settings(body: dict):
         "embedding.device": ("EMBEDDING_DEVICE", str),
         "embedding.api_base_url": ("EMBEDDING_API_BASE_URL", str),
         "embedding.api_key": ("EMBEDDING_API_KEY", str),
+        "embedding.query_max_chars": ("EMBEDDING_QUERY_MAX_CHARS", str),
         "retrieval.top_k": ("RETRIEVAL_TOP_K", str),
         "retrieval.max_retries": ("RETRIEVAL_MAX_RETRIES", str),
         "retrieval.critique_threshold": ("RETRIEVAL_CRITIQUE_THRESHOLD", str),
         "retrieval.rrf_k": ("RETRIEVAL_RRF_K", str),
         "retrieval.vector_backend": ("RETRIEVAL_VECTOR_BACKEND", str),
+        "reasoning.enabled": ("REASONING_ENABLED", lambda v: str(v).lower()),
+        "reasoning.max_hops": ("REASONING_MAX_HOPS", str),
+        "reasoning.context_max_chars": ("REASONING_CONTEXT_MAX_CHARS", str),
+        "reasoning.search_query_max_chars": ("REASONING_SEARCH_QUERY_MAX_CHARS", str),
         "rerank.enabled": ("RERANK_ENABLED", lambda v: str(v).lower()),
         "rerank.provider": ("RERANK_PROVIDER", str),
         "rerank.model": ("RERANK_MODEL", str),
@@ -202,7 +218,7 @@ async def update_settings(body: dict):
         "langsmith.endpoint": ("LANGSMITH_ENDPOINT", str),
     }
 
-    for section in ["llm", "embedding", "retrieval", "rerank", "milvus", "mcp", "langsmith"]:
+    for section in ["llm", "embedding", "retrieval", "reasoning", "rerank", "milvus", "mcp", "langsmith"]:
         if section in body:
             for key, value in body[section].items():
                 path = f"{section}.{key}"
@@ -230,6 +246,12 @@ async def update_settings(body: dict):
 
     _write_env(env_updates)
     reload_settings()
+    # Configuration objects and backend clients are cached in process. Reset
+    # those caches so a hot reload actually affects the next request.
+    from research_agent.retrieval.service import retrieval_service
+    from research_agent.retrieval.embedding import reset_embedding_service
+    retrieval_service.reset()
+    reset_embedding_service()
     global app_settings
     from config.settings import settings as reloaded_settings
     app_settings = reloaded_settings

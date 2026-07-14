@@ -12,9 +12,8 @@ from pydantic import BaseModel, Field
 
 from backend.services.research_service import task_manager
 from research_agent.llm.factory import create_llm_client
-from research_agent.retrieval.vector_store import create_vector_store
-from research_agent.retrieval.bm25 import BM25Retriever
 from research_agent.retrieval.hybrid import HybridRetriever
+from research_agent.retrieval.service import retrieval_service
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -37,17 +36,8 @@ _REWRITE_SYSTEM_PROMPT = """你负责把用户当前问题改写成适合知识�
 - 如果当前问题本身已经完整，直接原样返回
 - 只返回改写后的问题，不要解释"""
 
-_vector_store = None
-_bm25: BM25Retriever | None = None
-
-
 def _get_hybrid() -> HybridRetriever:
-    global _vector_store, _bm25
-    if _vector_store is None:
-        _vector_store = create_vector_store()
-    if _bm25 is None:
-        _bm25 = BM25Retriever()
-    return HybridRetriever(_vector_store, _bm25)
+    return retrieval_service.get_hybrid()
 
 
 class QuickSearchHistoryMessage(BaseModel):

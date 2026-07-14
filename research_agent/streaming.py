@@ -73,7 +73,7 @@ class EventBus:
                 )
                 yield f"data: {sse_data}\n\n"
                 yielded += 1
-                if event.event_type == "done":
+                if event.event_type in {"done", "error", "cancelled"}:
                     print(f"[EVENTBUS] subscribe DONE: {task_id[:6]}... yielded={yielded}", flush=True, file=sys.stderr)
                     return
 
@@ -92,6 +92,14 @@ class EventBus:
     def cleanup(self, task_id: str) -> None:
         self._buffers.pop(task_id, None)
         self._events.pop(task_id, None)
+
+    def schedule_cleanup(self, task_id: str, delay_seconds: float = 60.0) -> None:
+        """Retain terminal events briefly so late SSE subscribers can catch up."""
+        asyncio.create_task(self._cleanup_after(task_id, delay_seconds))
+
+    async def _cleanup_after(self, task_id: str, delay_seconds: float) -> None:
+        await asyncio.sleep(delay_seconds)
+        self.cleanup(task_id)
 
 
 # Global event bus instance

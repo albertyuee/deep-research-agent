@@ -1,11 +1,11 @@
 <template>
   <div>
-    <div class="mb-5">
+    <div class="page-heading mb-5">
       <h1 class="text-xl font-bold text-gray-800">
         🔬 深度研究
       </h1>
       <p class="text-sm text-gray-400">
-        自主拆解问题 · 自适应检索 · 质量评估 · 报告合成
+        从问题拆解到证据报告，全程展示研究路径
       </p>
     </div>
 
@@ -15,8 +15,8 @@
       @stop="onStop"
     />
 
-    <div v-if="showContent" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <div class="lg:col-span-1">
+    <div v-if="showContent" class="research-layout grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-1 research-sidebar">
         <AgentStepper />
         <ProgressPanel />
         <WebSearchCard />
@@ -41,7 +41,7 @@
       </div>
       <h2 class="welcome-title-text">开始你的深度研究</h2>
       <p class="welcome-desc">
-        输入一个复杂问题，Agent 会自动拆解、检索、评估并合成一份结构化的研究报告
+        提出一个复杂问题，Agent 会规划路径、检索证据并生成带来源的结构化报告。
       </p>
       <div class="welcome-steps">
         <div v-for="(step, i) in steps" :key="i" class="welcome-step-item">
@@ -88,6 +88,7 @@ import EventTimeline from '@/components/research/EventTimeline.vue'
 import WebSearchCard from '@/components/research/WebSearchCard.vue'
 import ReportView from '@/components/report/ReportView.vue'
 import SourceList from '@/components/report/SourceList.vue'
+import type { ResearchMode } from '@/api/research'
 
 const store = useResearchStore()
 const { start, stop, cleanup } = useResearch()
@@ -102,8 +103,13 @@ const steps = [
   { title: '获取报告', desc: '结构化研究报告 + 可追溯引用来源' },
 ]
 
-async function onSubmit(query: string, enableWebSearch: boolean) {
-  await start(query, enableWebSearch)
+async function onSubmit(
+  query: string,
+  enableWebSearch: boolean,
+  researchMode: ResearchMode,
+  maxHops: number,
+) {
+  await start(query, enableWebSearch, researchMode, maxHops)
 }
 
 async function onStop() {
@@ -123,30 +129,43 @@ onBeforeUnmount(() => {
   border: 1px solid #f3f4f6;
 }
 
+.research-sidebar {
+  align-self: start;
+}
+
+@media (min-width: 1024px) {
+  .research-sidebar {
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    padding-right: 3px;
+  }
+}
+
 /* Welcome / Empty State */
 .welcome-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 24px;
+  padding: 28px 20px 20px;
   text-align: center;
-  min-height: 50vh;
 }
 
 .welcome-icon-wrap {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .welcome-icon-large {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 80px;
-  height: 80px;
-  font-size: 2.5rem;
+  width: 64px;
+  height: 64px;
+  font-size: 2rem;
   background: linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%);
-  border-radius: 24px;
+  border-radius: 20px;
   box-shadow: 0 8px 24px rgba(124, 58, 237, 0.12);
 }
 
@@ -162,25 +181,25 @@ onBeforeUnmount(() => {
   color: #9ca3af;
   max-width: 420px;
   line-height: 1.6;
-  margin: 0 0 32px 0;
+  margin: 0 0 22px 0;
 }
 
 .welcome-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
   width: 100%;
-  max-width: 400px;
+  max-width: 820px;
 }
 
 .welcome-step-item {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  align-items: flex-start;
+  gap: 12px;
   background: #fafbfc;
   border: 1px solid #f3f4f6;
   border-radius: 14px;
-  padding: 14px 18px;
+  padding: 14px;
   text-align: left;
   transition: all 0.2s ease;
 }
@@ -215,5 +234,20 @@ onBeforeUnmount(() => {
   font-size: 0.78rem;
   color: #9ca3af;
   margin-top: 2px;
+}
+
+@media (max-width: 760px) {
+  .page-heading {
+    margin-bottom: 14px;
+  }
+
+  .welcome-empty {
+    padding: 20px 4px 8px;
+  }
+
+  .welcome-steps {
+    grid-template-columns: 1fr;
+    max-width: 480px;
+  }
 }
 </style>

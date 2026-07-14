@@ -44,11 +44,37 @@ if [ ! -f "config/.env" ]; then
 fi
 
 # 检查 API Key
-source <(grep -oP '^[^#]*\K\w+=[^=]*' config/.env | head -1 2>/dev/null || true)
+# BSD grep on macOS does not support -P; a portable extended regex is enough
+# for the lightweight configuration check performed below.
+source <(grep -E '^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*=' config/.env | head -1 2>/dev/null || true)
 if grep -q "sk-your-siliconflow-api-key-here" config/.env 2>/dev/null || ! grep -q "LLM_API_KEY=sk-" config/.env; then
     echo "⚠️  请先配置 config/.env 中的 LLM_API_KEY"
     echo "   获取 API Key: https://cloud.siliconflow.cn"
     echo ""
+fi
+
+# gRPC-based Milvus/Zilliz connections should bypass HTTP/SOCKS proxies.
+# Otherwise grpcio may send the TLS handshake to all_proxy and fail with
+# "Handshake read failed". Only the configured host is added; API traffic
+# such as SiliconFlow and GitHub can continue to use the user's proxy.
+MILVUS_BYPASS_HOST=$(python3 -c '
+from urllib.parse import urlparse
+from config.settings import settings
+
+uri = settings.milvus.uri or ""
+host = urlparse(uri).hostname if uri else settings.milvus.host
+print(host or "")
+' 2>/dev/null || true)
+
+if [ -n "$MILVUS_BYPASS_HOST" ]; then
+    NO_PROXY_VALUE="${no_proxy:-${NO_PROXY:-}}"
+    case ",$NO_PROXY_VALUE," in
+        *",$MILVUS_BYPASS_HOST,"*) ;;
+        *) NO_PROXY_VALUE="${NO_PROXY_VALUE:+$NO_PROXY_VALUE,}$MILVUS_BYPASS_HOST" ;;
+    esac
+    export no_proxy="$NO_PROXY_VALUE"
+    export NO_PROXY="$NO_PROXY_VALUE"
+    echo "✓ Milvus 直连: $MILVUS_BYPASS_HOST"
 fi
 
 # 检查示例文档
@@ -134,7 +160,7 @@ mkdir -p "$LOG_DIR"
 
 # 启动后端
 echo "🚀 启动后端 (FastAPI)..."
-uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload > "$LOG_DIR/backend.log" 2>&1 &
+uvicorn backend.main:app --host 127.0.0.1 --port 8000 > "$LOG_DIR/backend.log" 2>&1 &
 BACKEND_PID=$!
 echo "   后端 PID: $BACKEND_PID"
 
@@ -161,7 +187,7 @@ if [ ! -d "node_modules" ]; then
     echo "   ✓ 依赖安装完成"
 fi
 
-npm run dev -- --host 0.0.0.0 > "$LOG_DIR/frontend.log" 2>&1 &
+npm run dev -- --host 127.0.0.1 > "$LOG_DIR/frontend.log" 2>&1 &
 FRONTEND_PID=$!
 cd "$SCRIPT_DIR"
 echo "   前端 PID: $FRONTEND_PID"

@@ -1,17 +1,23 @@
 import { useResearchStore } from '@/stores/research'
 import { submitResearch, fetchResult, cancelResearch } from '@/api/research'
+import type { ResearchMode } from '@/api/research'
 
 export function useResearch() {
   const store = useResearchStore()
   let eventSource: EventSource | null = null
 
-  async function start(query: string, enableWebSearch: boolean = false): Promise<void> {
+  async function start(
+    query: string,
+    enableWebSearch: boolean = false,
+    researchMode: ResearchMode = 'auto',
+    maxHops: number = 3,
+  ): Promise<void> {
     store.reset()
     store.setQuery(query)
 
     try {
-      const taskId = await submitResearch(query, enableWebSearch)
-      store.startResearch(taskId)
+      const taskId = await submitResearch(query, enableWebSearch, researchMode, maxHops)
+      store.startResearch(taskId, researchMode, maxHops)
 
       eventSource = new EventSource(`/api/v1/research/${taskId}/stream`)
 

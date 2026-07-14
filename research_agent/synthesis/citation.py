@@ -80,7 +80,7 @@ def build_references_section(citations: dict[str, Citation]) -> str:
                 continue
             seen_urls.add(c.url)
             label = c.doc_title or c.url
-            lines.append(f"{idx}. [{label}]({c.url})")
+            lines.append(f"{idx}. [{label}]({c.url}) — 来源ID: `{c.source_id}`")
             idx += 1
 
     # Local document sources
@@ -97,7 +97,7 @@ def build_references_section(citations: dict[str, Citation]) -> str:
             seen_files.add(key)
             lines.append(
                 f"{idx}. **{c.file_name or c.source_id}** "
-                f"— 检索得分: {c.score:.2f}, 策略: {c.strategy}"
+                f"— 来源ID: `{c.source_id}`, 检索得分: {c.score:.2f}, 策略: {c.strategy}"
             )
             idx += 1
 

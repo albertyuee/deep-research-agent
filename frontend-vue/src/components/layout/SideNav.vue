@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, h, type Component } from 'vue'
+import { ref, computed, h, onBeforeUnmount, onMounted, type Component } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { NIcon } from 'naive-ui'
 import {
@@ -55,6 +55,22 @@ const route = useRoute()
 const collapsed = ref(false)
 
 const currentRoute = computed(() => route.path)
+
+let compactQuery: MediaQueryList | null = null
+
+function syncCompactNavigation(event: MediaQueryListEvent | MediaQueryList) {
+  if (event.matches) collapsed.value = true
+}
+
+onMounted(() => {
+  compactQuery = window.matchMedia('(max-width: 900px)')
+  syncCompactNavigation(compactQuery)
+  compactQuery.addEventListener('change', syncCompactNavigation)
+})
+
+onBeforeUnmount(() => {
+  compactQuery?.removeEventListener('change', syncCompactNavigation)
+})
 
 function renderIcon(icon: Component) {
   return () => h(NIcon, null, { default: () => h(icon) })

@@ -10,12 +10,14 @@ class AggregatedFinding:
     sources: list[dict] = field(default_factory=list)
     conflict_note: str | None = None
     low_confidence: bool = False
+    reasoning_context: dict | None = None
 
 
 def aggregate_results(
     sub_queries: list[str],
     retrieval_results: list[list[dict]],
     critique_scores: list[dict],
+    step_contexts: dict[str, dict] | None = None,
 ) -> list[AggregatedFinding]:
     """Aggregate retrieval results from multiple sub-queries.
 
@@ -60,6 +62,7 @@ def aggregate_results(
                 content=combined_content,
                 sources=unique_sources,
                 low_confidence=critique.get("composite_score", 0) < 0.6,
+                reasoning_context=(step_contexts or {}).get(str(i + 1)),
             )
         )
 

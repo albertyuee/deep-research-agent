@@ -15,8 +15,8 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 
 from research_agent.retrieval.document_loader import DocumentLoader, SUPPORTED_EXTENSIONS
-from research_agent.retrieval.vector_store import create_vector_store
 from research_agent.retrieval.bm25 import BM25Retriever
+from research_agent.retrieval.service import retrieval_service
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
@@ -27,22 +27,16 @@ MAX_UPLOAD_SIZE_BYTES = 20 * 1024 * 1024
 UPLOAD_READ_CHUNK_SIZE = 1024 * 1024
 MAX_SAFE_FILENAME_LENGTH = 120
 
-_vector_store = None
 _bm25: BM25Retriever | None = None
 
 
 def _get_vector_store():
-    global _vector_store
-    if _vector_store is None:
-        _vector_store = create_vector_store()
-    return _vector_store
+    return retrieval_service.get_vector_store()
 
 
 def _get_bm25() -> BM25Retriever:
     global _bm25
-    if _bm25 is None:
-        _bm25 = BM25Retriever()
-    return _bm25
+    return _bm25 or retrieval_service.get_bm25()
 
 
 def _rebuild_bm25_from_vector_store(vs) -> int:
@@ -201,6 +195,8 @@ async def upload_document(file: UploadFile = File(...)):
     file_dir.mkdir(parents=True, exist_ok=True)
 
     temp_path = file_dir / safe_filename
+    vs = None
+    vector_index_attempted = False
 
     try:
         file_size = await _save_upload_with_limit(file, temp_path)
@@ -223,21 +219,12 @@ async def upload_document(file: UploadFile = File(...)):
             }
             for c in chunks
         ]
+        vector_index_attempted = True
         vs.add_documents(chunk_ids, chunk_texts, chunk_metas)
 
-        bm25 = _get_bm25()
-        if bm25.is_indexed:
-            all_ids = [bm25._documents[i]["id"] for i in range(len(bm25._documents))]
-            all_texts = [bm25._documents[i]["content"] for i in range(len(bm25._documents))]
-            all_metas = [bm25._documents[i]["metadata"] for i in range(len(bm25._documents))]
-            all_ids.extend(chunk_ids)
-            all_texts.extend(chunk_texts)
-            all_metas.extend(chunk_metas)
-        else:
-            all_ids = chunk_ids
-            all_texts = chunk_texts
-            all_metas = chunk_metas
-        bm25.index_documents(all_ids, all_texts, all_metas)
+        # Rebuild the shared keyword index from the durable vector store so
+        # research, quick search, and document management see identical data.
+        _rebuild_bm25_from_vector_store(vs)
 
         meta = _read_files_meta()
         meta["files"].append({
@@ -261,10 +248,20 @@ async def upload_document(file: UploadFile = File(...)):
         )
 
     except HTTPException:
+        if vector_index_attempted and vs is not None:
+            try:
+                vs.delete_by_upload_id(file_id)
+            except Exception:
+                logger.exception("Failed to roll back vector index for file_id=%s", file_id)
         if file_dir.exists():
             shutil.rmtree(file_dir)
         raise
     except Exception as e:
+        if vector_index_attempted and vs is not None:
+            try:
+                vs.delete_by_upload_id(file_id)
+            except Exception:
+                logger.exception("Failed to roll back vector index for file_id=%s", file_id)
         if file_dir.exists():
             shutil.rmtree(file_dir)
         raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
