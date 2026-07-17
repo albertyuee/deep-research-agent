@@ -8,6 +8,7 @@ import chromadb
 from chromadb.config import Settings as ChromaSettings
 
 from config.settings import settings
+from research_agent.retrieval.search_text import build_searchable_text
 
 
 class RetrievalResult(NamedTuple):
@@ -39,13 +40,18 @@ class VectorStore:
         from research_agent.retrieval.embedding import get_embedding_service
 
         emb_service = get_embedding_service()
-        embeddings = emb_service.embed(texts).tolist()
+        meta_list = metadatas or [{}] * len(texts)
+        searchable_texts = [
+            build_searchable_text(text, meta)
+            for text, meta in zip(texts, meta_list)
+        ]
+        embeddings = emb_service.embed(searchable_texts).tolist()
 
         self.collection.add(
             ids=ids,
             embeddings=embeddings,
             documents=texts,
-            metadatas=metadatas or [{}] * len(texts),
+            metadatas=meta_list,
         )
 
     def search(self, query: str, top_k: int | None = None) -> list[RetrievalResult]:
@@ -88,6 +94,17 @@ class VectorStore:
         if not ids:
             return 0
 
+        self.collection.delete(ids=ids)
+        return len(ids)
+
+    def delete_by_chunk_ids(self, chunk_ids: list[str]) -> int:
+        """Delete exact chunk IDs, used by non-destructive reindexing."""
+        if not chunk_ids:
+            return 0
+        matched = self.collection.get(ids=chunk_ids, include=[])
+        ids = matched.get("ids", []) if matched else []
+        if not ids:
+            return 0
         self.collection.delete(ids=ids)
         return len(ids)
 
@@ -164,8 +181,12 @@ class MilvusVectorStore:
         from research_agent.retrieval.embedding import get_embedding_service
 
         emb_service = get_embedding_service()
-        embeddings = emb_service.embed(texts).tolist()
         meta_list = metadatas or [{}] * len(texts)
+        searchable_texts = [
+            build_searchable_text(text, meta)
+            for text, meta in zip(texts, meta_list)
+        ]
+        embeddings = emb_service.embed(searchable_texts).tolist()
 
         data = [
             {
@@ -279,6 +300,20 @@ class MilvusVectorStore:
         if isinstance(result, dict):
             return int(result.get("delete_count") or result.get("delete_cnt") or len(matched))
         return int(getattr(result, "delete_count", len(matched)))
+
+    def delete_by_chunk_ids(self, chunk_ids: list[str]) -> int:
+        """Delete exact chunk IDs, used by non-destructive reindexing."""
+        if not chunk_ids:
+            return 0
+        client = self._get_client()
+        literals = ", ".join(self._string_literal(value) for value in chunk_ids)
+        result = client.delete(
+            collection_name=self._collection_name,
+            filter=f"chunk_id in [{literals}]",
+        )
+        if isinstance(result, dict):
+            return int(result.get("delete_count") or result.get("delete_cnt") or len(chunk_ids))
+        return int(getattr(result, "delete_count", len(chunk_ids)))
 
     def get_all_documents(self) -> tuple[list[str], list[str], list[dict]]:
         """Return all indexed chunks for rebuilding keyword indexes."""

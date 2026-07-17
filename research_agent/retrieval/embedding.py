@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import numpy as np
+import time
 from langsmith import traceable
 from typing import Literal
+
+from research_agent.observability.timing import record_timing
 
 
 def _get_settings():
@@ -66,8 +69,16 @@ class EmbeddingService:
 
     def _embed_local(self, texts: list[str]) -> np.ndarray:
         """Generate embeddings using local sentence-transformers model."""
-        model = _get_local_model()
-        return model.encode(texts, normalize_embeddings=True)
+        started = time.perf_counter()
+        try:
+            model = _get_local_model()
+            return model.encode(texts, normalize_embeddings=True)
+        finally:
+            record_timing(
+                "embedding",
+                (time.perf_counter() - started) * 1000,
+                details={"model": self.model_name, "text_count": len(texts), "mode": "local"},
+            )
 
     def _embed_api(self, texts: list[str]) -> np.ndarray:
         """Generate embeddings using SiliconFlow API."""
@@ -81,18 +92,31 @@ class EmbeddingService:
             max_chars = max(len(t) for t in batch)
             print(f"[EMBED] batch {i//batch_size + 1}: {len(batch)} texts, max_chars={max_chars}", flush=True)
 
-            response = httpx.post(
-                f"{self.api_base_url}/embeddings",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": self.model_name,
-                    "input": batch,
-                },
-                timeout=60.0,
-            )
+            started = time.perf_counter()
+            response = None
+            try:
+                response = httpx.post(
+                    f"{self.api_base_url}/embeddings",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": self.model_name,
+                        "input": batch,
+                    },
+                    timeout=60.0,
+                )
+            finally:
+                record_timing(
+                    "embedding",
+                    (time.perf_counter() - started) * 1000,
+                    details={
+                        "model": self.model_name,
+                        "text_count": len(batch),
+                        "status_code": response.status_code if response is not None else None,
+                    },
+                )
             if not response.is_success:
                 detail = response.text[:500]
                 print(
@@ -130,8 +154,16 @@ class EmbeddingService:
         if self.mode == "api":
             result = self._embed_api([prepared_query])
             return result[0]
-        model = _get_local_model()
-        return model.encode([prepared_query], normalize_embeddings=True)[0]
+        started = time.perf_counter()
+        try:
+            model = _get_local_model()
+            return model.encode([prepared_query], normalize_embeddings=True)[0]
+        finally:
+            record_timing(
+                "embedding",
+                (time.perf_counter() - started) * 1000,
+                details={"model": self.model_name, "text_count": 1, "mode": "local"},
+            )
 
     def _prepare_query(self, query: str) -> str:
         """Bound query size before it reaches a model-specific token limit."""

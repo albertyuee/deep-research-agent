@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "description": "基于项目开放许可语料的本地知识库检索评测集，不包含用户上传的私人资料。",
+  "cases": [
+    {
+      "id": "graphrag_overview",
+      "query": "Microsoft GraphRAG 如何从非结构化文本提取结构化知识并增强私有数据推理？",
+      "expected_sources": ["microsoft_graphrag.md"],
+      "match": "any"
+    },
+    {
+      "id": "langgraph_stateful_agents",
+      "query": "LangGraph 如何支持可恢复、长时间运行的有状态 Agent 工作流？",
+      "expected_sources": ["langchain_langgraph.md"],
+      "match": "any"
+    },
+    {
+      "id": "haystack_pipelines",
+      "query": "Haystack 如何使用模块化 Pipeline 和 Agent 构建生产级 RAG 应用？",
+      "expected_sources": ["deepset_haystack.md"],
+      "match": "any"
+    },
+    {
+      "id": "llamaindex_integrations",
+      "query": "LlamaIndex core 与集成包分别承担什么作用？",
+      "expected_sources": ["llamaindex.md"],
+      "match": "any"
+    },
+    {
+      "id": "chroma_metadata",
+      "query": "Chroma 如何保存文档、向量和 metadata，并利用 metadata 过滤？",
+      "expected_sources": ["chroma.md"],
+      "match": "any"
+    },
+    {
+      "id": "qdrant_payload_filter",
+      "query": "Qdrant 的 payload 和扩展过滤能力如何支持向量相似度检索？",
+      "expected_sources": ["qdrant.md"],
+      "match": "any"
+    },
+    {
+      "id": "hotpotqa_supporting_facts",
+      "query": "HotpotQA 如何使用 supporting facts 和 bridge 类型问题评估多跳问答？",
+      "expected_sources": ["hotpotqa.md"],
+      "match": "any"
+    },
+    {
+      "id": "haystack_llamaindex_comparison",
+      "query": "比较 Haystack 的 Pipeline 编排与 LlamaIndex 的数据索引和集成能力。",
+      "expected_sources": ["deepset_haystack.md", "llamaindex.md"],
+      "match": "all"
+    }
+  ]
+}

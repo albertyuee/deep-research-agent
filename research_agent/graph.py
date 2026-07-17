@@ -13,8 +13,12 @@ decides whether to retry retrieval or proceed to synthesis.
 
 from __future__ import annotations
 
+import asyncio
+import copy
 import sys
 import time as _time
+from collections.abc import Awaitable, Callable
+from typing import TypeVar
 
 from langgraph.graph import StateGraph, END
 
@@ -38,11 +42,64 @@ from research_agent.reasoning.context import (
 from research_agent.synthesis.aggregator import aggregate_results
 from research_agent.synthesis.report_generator import generate_report_streaming
 from research_agent.synthesis.citation import build_citation_map, build_references_section
+from research_agent.observability.timing import (
+    collect_timings,
+    emit_timing_events,
+    record_timing,
+)
 from config.settings import settings
+
+
+T = TypeVar("T")
 
 # Debug helper — prints to stderr (captured by uvicorn log)
 def _dbg(task_id: str, msg: str) -> None:
     print(f"[AGENT-DBG {task_id}] {msg}", flush=True, file=sys.stderr)
+
+
+def _research_step_progress(step_idx: int, total_steps: int, fraction: float) -> float:
+    """Map a step-local fraction onto the monotonic 10%-60% research range."""
+    total = max(total_steps, 1)
+    bounded_step = min(max(step_idx, 0), total - 1)
+    bounded_fraction = min(max(fraction, 0.0), 1.0)
+    return 0.10 + ((bounded_step + bounded_fraction) / total) * 0.50
+
+
+def _cap_sub_queries(sub_queries: list[dict]) -> list[dict]:
+    """Apply the configured planner output limit defensively."""
+    return sub_queries[: max(1, settings.reasoning.max_sub_queries)]
+
+
+def _retry_top_k(retry_count: int) -> int:
+    """Expand retrieval breadth on retry without exceeding the hard cap."""
+    expanded = settings.retrieval.top_k * (
+        settings.retrieval.retry_top_k_multiplier ** max(0, retry_count)
+    )
+    return min(expanded, settings.retrieval.max_top_k)
+
+
+async def _timed_call(
+    task_id: str,
+    operation: str,
+    call: Callable[[], Awaitable[T]],
+    *,
+    step: int | None = None,
+    attempt: int | None = None,
+    category: str = "stage",
+) -> T:
+    """Run an async graph operation and emit its low-level and stage timings."""
+    with collect_timings(
+        task_id,
+        operation,
+        step=step,
+        attempt=attempt,
+    ) as metrics:
+        started = _time.perf_counter()
+        try:
+            return await call()
+        finally:
+            record_timing(category, (_time.perf_counter() - started) * 1000)
+            emit_timing_events(task_id, metrics)
 
 
 # ──────────────────── Node: Decomposition ────────────────────
@@ -73,17 +130,24 @@ async def decomposition_node(state: ResearchState) -> ResearchState:
     _dbg(task_id, f"calling decompose_query (model={client.model}, web={enable_web_search})...")
     t0 = _time.time()
     try:
-        sub_queries = await decompose_query(
-            client,
-            query,
-            enable_web_search,
-            research_mode,
-            max_hops,
+        sub_queries = await _timed_call(
+            task_id,
+            "decomposition",
+            lambda: decompose_query(
+                client,
+                query,
+                enable_web_search,
+                research_mode,
+                max_hops,
+            ),
         )
         _dbg(task_id, f"decompose_query OK after {_time.time()-t0:.1f}s, {len(sub_queries)} sub-queries")
     except Exception as e:
         _dbg(task_id, f"decompose_query FAILED after {_time.time()-t0:.1f}s: {e}")
         raise
+
+    # Enforce the server-side limit even if the model ignores the JSON schema.
+    sub_queries = _cap_sub_queries(sub_queries)
 
     # A provider failure or malformed structured response should still produce
     # a useful single-step research task instead of crashing in critique_node.
@@ -93,7 +157,7 @@ async def decomposition_node(state: ResearchState) -> ResearchState:
             "question": query,
             "strategy": "hybrid",
             "data_source": "local",
-            "rationale": "Fallback to the original query.",
+            "rationale": "规划结果为空，回退为对原始问题进行混合检索。",
         }]
 
     plan = ResearchPlan.from_decomposition(query, sub_queries)
@@ -173,7 +237,13 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
     available_contexts = [context for context in dependency_contexts if context]
     if available_contexts and state.get("reasoning_enabled", settings.reasoning.enabled):
         rendered_context = render_step_context(available_contexts)
-        query = await build_contextual_search_query(client, query, available_contexts)
+        query = await _timed_call(
+            task_id,
+            "reasoning_query",
+            lambda: build_contextual_search_query(client, query, available_contexts),
+            step=step_idx + 1,
+            attempt=retry_count,
+        )
         emit(task_id, "reasoning_query", {
             "step": step_idx + 1,
             "hop": sub_q.get("hop", 1),
@@ -190,18 +260,50 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
         strategy = "keyword" if original == "semantic" else "semantic"
     else:
         # On retry, re-evaluate strategy
-        strategy = await select_strategy(client, query)
+        strategy = await _timed_call(
+            task_id,
+            "strategy_selection",
+            lambda: select_strategy(client, query),
+            step=step_idx + 1,
+            attempt=retry_count,
+        )
 
     # On retry, rewrite the query
     if retry_count > 0:
         action_map = {1: RewriteAction.BROADEN, 2: RewriteAction.SWITCH_KEYWORDS, 3: RewriteAction.REPHRASE}
         action = action_map.get(retry_count, RewriteAction.REPHRASE)
-        query = await rewrite_query(client, query, action)
+        query = await _timed_call(
+            task_id,
+            "query_rewrite",
+            lambda: rewrite_query(client, query, action),
+            step=step_idx + 1,
+            attempt=retry_count,
+        )
 
     state["retrieval_strategy"] = strategy
 
     total_steps = state["total_steps"]
-    retr_progress = 0.10 + (step_idx / max(total_steps, 1)) * 0.30
+    retr_progress = _research_step_progress(step_idx, total_steps, 0.0)
+
+    # Start web search before local retrieval. The local vector/BM25 work is
+    # moved to a worker thread below, allowing both sources to overlap.
+    web_task: asyncio.Task[list[dict]] | None = None
+    if data_source in ("web", "both"):
+        emit(task_id, "web_search_start", {
+            "step": step_idx + 1,
+            "total": total_steps,
+            "query": query,
+            "progress": _research_step_progress(step_idx, total_steps, 0.45),
+        })
+        from research_agent.tools.web_search import search_web
+        web_task = asyncio.create_task(_timed_call(
+            task_id,
+            "web_search",
+            lambda: search_web(query),
+            step=step_idx + 1,
+            attempt=retry_count,
+            category="web_search",
+        ))
 
     # ── Local Retrieval ──
     local_results = []
@@ -225,14 +327,32 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
                 strategy = "semantic"  # fallback if BM25 not indexed
 
             hybrid = HybridRetriever(vector_store, bm25)
-            top_k = settings.retrieval.top_k * (2 ** retry_count)  # expand k on retry
+            top_k = _retry_top_k(retry_count)
 
             if strategy == "semantic":
-                results = hybrid.search_vector_only(query, top_k=top_k)
+                results = await _timed_call(
+                    task_id,
+                    "local_retrieval",
+                    lambda: asyncio.to_thread(hybrid.search_vector_only, query, top_k=top_k),
+                    step=step_idx + 1,
+                    attempt=retry_count,
+                )
             elif strategy == "keyword":
-                results = hybrid.search_keyword_only(query, top_k=top_k)
+                results = await _timed_call(
+                    task_id,
+                    "local_retrieval",
+                    lambda: asyncio.to_thread(hybrid.search_keyword_only, query, top_k=top_k),
+                    step=step_idx + 1,
+                    attempt=retry_count,
+                )
             else:
-                results = hybrid.search(query, top_k=top_k)
+                results = await _timed_call(
+                    task_id,
+                    "local_retrieval",
+                    lambda: asyncio.to_thread(hybrid.search, query, top_k=top_k),
+                    step=step_idx + 1,
+                    attempt=retry_count,
+                )
 
             local_results = [
                 {
@@ -253,7 +373,7 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
                 "top_score": local_results[0]["score"] if local_results else 0,
                 "top_preview": local_results[0]["content"][:200] if local_results else "",
                 "data_source": "local",
-                "progress": retr_progress + 0.10,
+                "progress": _research_step_progress(step_idx, total_steps, 0.45),
             })
 
         except Exception as e:
@@ -268,7 +388,7 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
                     "top_preview": "",
                     "data_source": "local",
                     "error": str(e),
-                    "progress": retr_progress + 0.10,
+                    "progress": _research_step_progress(step_idx, total_steps, 0.45),
                 })
             else:
                 # data_source == "local" — no web fallback, re-raise
@@ -277,15 +397,7 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
     # ── Web Search ──
     web_results = []
     if data_source in ("web", "both"):
-        emit(task_id, "web_search_start", {
-            "step": step_idx + 1,
-            "total": total_steps,
-            "query": query,
-            "progress": retr_progress + 0.10,
-        })
-
-        from research_agent.tools.web_search import search_web
-        web_results = await search_web(query)
+        web_results = await web_task if web_task else []
 
         # Build structured result list for frontend rendering
         web_result_items = [
@@ -302,14 +414,14 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
             "step": step_idx + 1,
             "result_count": len(web_results),
             "results": web_result_items,
-            "progress": retr_progress + 0.15,
+            "progress": _research_step_progress(step_idx, total_steps, 0.60),
         })
 
     # ── Merge: local first, then web ──
     all_results = local_results + web_results
     state["retrieval_results"] = all_results
 
-    combined_progress = 0.10 + ((step_idx + 1) / max(total_steps, 1)) * 0.30
+    combined_progress = _research_step_progress(step_idx, total_steps, 0.65)
     emit(task_id, "retrieval_combined", {
         "step": step_idx + 1,
         "local_count": len(local_results),
@@ -335,7 +447,7 @@ async def critique_node(state: ResearchState) -> ResearchState:
     step_idx = state["current_step"]
     total = state.get("total_steps", 1)
 
-    crit_progress = 0.40 + ((step_idx + 1) / max(total, 1)) * 0.05
+    crit_progress = _research_step_progress(step_idx, total, 0.75)
     emit(task_id, "critique_start", {"step": step_idx + 1, "progress": crit_progress})
 
     client = create_llm_client()
@@ -343,7 +455,13 @@ async def critique_node(state: ResearchState) -> ResearchState:
     results = state.get("retrieval_results", [])
 
     result_texts = [r["content"] for r in results]
-    critique = await critique_retrieval(client, sub_q["question"], result_texts)
+    critique = await _timed_call(
+        task_id,
+        "critique",
+        lambda: critique_retrieval(client, sub_q["question"], result_texts),
+        step=step_idx + 1,
+        attempt=state.get("retry_count", 0),
+    )
 
     state["critique_result"] = {
         "composite_score": critique.composite_score,
@@ -355,7 +473,7 @@ async def critique_node(state: ResearchState) -> ResearchState:
     }
     state["critique_passed"] = critique.passed
 
-    crit_res_progress = 0.40 + ((step_idx + 1) / max(total, 1)) * 0.15
+    crit_res_progress = _research_step_progress(step_idx, total, 1.0)
     emit(task_id, "critique_result", {
         "step": step_idx + 1,
         "composite_score": critique.composite_score,
@@ -405,11 +523,17 @@ async def critique_node(state: ResearchState) -> ResearchState:
         ]
         if dependent_steps and state.get("reasoning_enabled", settings.reasoning.enabled):
             try:
-                context = await extract_step_context(
-                    client,
-                    state["query"],
-                    sub_q["question"],
-                    results,
+                context = await _timed_call(
+                    task_id,
+                    "context_extraction",
+                    lambda: extract_step_context(
+                        client,
+                        state["query"],
+                        sub_q["question"],
+                        results,
+                    ),
+                    step=step_number,
+                    attempt=retry_count,
                 )
             except Exception as exc:
                 _dbg(task_id, f"Step context extraction failed: {exc}")
@@ -446,6 +570,143 @@ async def critique_node(state: ResearchState) -> ResearchState:
         )
         _advance_to_next_step(state)
 
+    return state
+
+
+# ──────────────────── Node: Dependency-layer Research ────────────────────
+
+
+def _isolated_step_state(state: ResearchState, step_idx: int) -> ResearchState:
+    """Create mutable per-step state so concurrent branches never share writes."""
+    isolated: ResearchState = dict(state)
+    isolated["current_step"] = step_idx
+    isolated["retry_count"] = 0
+    isolated["retry_history"] = []
+    isolated["low_confidence_steps"] = []
+    isolated["completed_steps"] = list(state.get("completed_steps", []))
+    isolated["step_contexts"] = copy.deepcopy(state.get("step_contexts", {}))
+    isolated["step_results"] = copy.deepcopy(state.get("step_results", {}))
+    isolated["step_critiques"] = copy.deepcopy(state.get("step_critiques", {}))
+    isolated["reasoning_paths"] = []
+    isolated["all_retrieval_results"] = []
+    isolated["all_critique_results"] = []
+    return isolated
+
+
+async def _run_research_step(
+    state: ResearchState,
+    step_idx: int,
+    semaphore: asyncio.Semaphore,
+) -> tuple[int, ResearchState]:
+    """Run one step, including all configured retries, in an isolated branch."""
+    async with semaphore:
+        step_state = _isolated_step_state(state, step_idx)
+        step_number = step_idx + 1
+        task_id = state.get("task_id", "")
+
+        async def execute() -> ResearchState:
+            while step_number not in step_state.get("completed_steps", []):
+                # critique_node changes current_step only after this target is
+                # complete; retries continue to use the original step index.
+                step_state["current_step"] = step_idx
+                await retrieval_node(step_state)
+                await critique_node(step_state)
+            return step_state
+
+        completed_state = await _timed_call(
+            task_id,
+            "research_step",
+            execute,
+            step=step_number,
+        )
+        return step_idx, completed_state
+
+
+def _merge_step_state(state: ResearchState, step_idx: int, branch: ResearchState) -> None:
+    """Merge only the target step's outputs back into the shared state."""
+    step_number = step_idx + 1
+    step_key = str(step_number)
+
+    if step_key in branch.get("step_results", {}):
+        state.setdefault("step_results", {})[step_key] = branch["step_results"][step_key]
+    if step_key in branch.get("step_critiques", {}):
+        state.setdefault("step_critiques", {})[step_key] = branch["step_critiques"][step_key]
+    if step_key in branch.get("step_contexts", {}):
+        state.setdefault("step_contexts", {})[step_key] = branch["step_contexts"][step_key]
+
+    if step_number in branch.get("low_confidence_steps", []):
+        low_confidence = state.setdefault("low_confidence_steps", [])
+        if step_number not in low_confidence:
+            low_confidence.append(step_number)
+
+    state.setdefault("retry_history", []).extend(branch.get("retry_history", []))
+    state.setdefault("reasoning_paths", []).extend(branch.get("reasoning_paths", []))
+    completed = state.setdefault("completed_steps", [])
+    if step_number not in completed:
+        completed.append(step_number)
+    state["hop_count"] = max(state.get("hop_count", 0), branch.get("hop_count", 0))
+
+
+async def research_node(state: ResearchState) -> ResearchState:
+    """Execute ready dependency layers with bounded step concurrency."""
+    task_id = state.get("task_id", "")
+    sub_queries = state.get("sub_queries", [])
+    max_hops = state.get("max_hops", settings.reasoning.max_hops)
+    concurrency = max(1, settings.retrieval.max_concurrency)
+    semaphore = asyncio.Semaphore(concurrency)
+
+    pending = {
+        index
+        for index, step in enumerate(sub_queries)
+        if int(step.get("hop", 1)) <= max_hops
+    }
+    skipped = set(range(len(sub_queries))) - pending
+    for index in sorted(skipped):
+        state.setdefault("low_confidence_steps", []).append(index + 1)
+
+    while pending:
+        completed = set(state.get("completed_steps", []))
+        ready = [
+            index
+            for index in sorted(pending)
+            if {
+                int(dep)
+                for dep in sub_queries[index].get("depends_on", [])
+                if str(dep).isdigit()
+            }.issubset(completed)
+        ]
+        if not ready:
+            # A malformed/cyclic plan should still finish deterministically.
+            ready = [min(pending)]
+            _dbg(task_id, f"dependency cycle fallback: step={ready[0] + 1}")
+
+        emit(task_id, "research_layer_start", {
+            "steps": [index + 1 for index in ready],
+            "concurrency": concurrency,
+        })
+        branches = await _timed_call(
+            task_id,
+            "research_layer",
+            lambda: asyncio.gather(*(
+                _run_research_step(state, index, semaphore)
+                for index in ready
+            )),
+        )
+        for step_idx, branch in sorted(branches, key=lambda item: item[0]):
+            _merge_step_state(state, step_idx, branch)
+            pending.discard(step_idx)
+
+    state["completed_steps"] = sorted(set(state.get("completed_steps", [])))
+    state["low_confidence_steps"] = sorted(set(state.get("low_confidence_steps", [])))
+    state["all_retrieval_results"] = [
+        state.get("step_results", {}).get(str(index + 1), [])
+        for index in range(len(sub_queries))
+    ]
+    state["all_critique_results"] = [
+        state.get("step_critiques", {}).get(str(index + 1), {})
+        for index in range(len(sub_queries))
+    ]
+    state["current_step"] = len(sub_queries)
     return state
 
 
@@ -497,11 +758,17 @@ async def synthesis_node(state: ResearchState) -> ResearchState:
     client = create_llm_client()
     report_parts = []
     chunk_idx = 0
-    async for chunk in generate_report_streaming(client, state["query"], findings, citation_map):
-        report_parts.append(chunk)
-        chunk_idx += 1
-        synth_progress = 0.60 + min(chunk_idx * 0.005, 0.30)
-        emit(task_id, "synthesis_chunk", {"text": chunk, "progress": synth_progress})
+    with collect_timings(task_id, "synthesis") as metrics:
+        started = _time.perf_counter()
+        try:
+            async for chunk in generate_report_streaming(client, state["query"], findings, citation_map):
+                report_parts.append(chunk)
+                chunk_idx += 1
+                synth_progress = 0.60 + min(chunk_idx * 0.005, 0.30)
+                emit(task_id, "synthesis_chunk", {"text": chunk, "progress": synth_progress})
+        finally:
+            record_timing("stage", (_time.perf_counter() - started) * 1000)
+            emit_timing_events(task_id, metrics)
 
     report = "".join(report_parts)
 
@@ -512,8 +779,6 @@ async def synthesis_node(state: ResearchState) -> ResearchState:
 
     state["final_report"] = report
     state["sources"] = all_sources
-
-    emit(task_id, "done", {"report_length": len(report), "progress": 1.0})
 
     return state
 
@@ -651,27 +916,15 @@ def build_graph() -> StateGraph:
 
     # Add nodes
     workflow.add_node("decomposition", decomposition_node)
-    workflow.add_node("retrieval", retrieval_node)
-    workflow.add_node("critique", critique_node)
+    workflow.add_node("research", research_node)
     workflow.add_node("synthesis", synthesis_node)
 
     # Set entry point
     workflow.set_entry_point("decomposition")
 
     # Edges
-    workflow.add_edge("decomposition", "retrieval")
-    workflow.add_edge("retrieval", "critique")
-
-    # Conditional edge from critique
-    workflow.add_conditional_edges(
-        "critique",
-        should_retry,
-        {
-            "retrieval": "retrieval",
-            "synthesis": "synthesis",
-        },
-    )
-
+    workflow.add_edge("decomposition", "research")
+    workflow.add_edge("research", "synthesis")
     workflow.add_edge("synthesis", END)
 
     return workflow.compile()

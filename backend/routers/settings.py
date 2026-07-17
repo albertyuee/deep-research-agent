@@ -48,6 +48,8 @@ def _get_retrieval_settings() -> dict:
     return {
         "top_k": app_settings.retrieval.top_k,
         "retry_top_k_multiplier": app_settings.retrieval.retry_top_k_multiplier,
+        "max_top_k": app_settings.retrieval.max_top_k,
+        "max_concurrency": app_settings.retrieval.max_concurrency,
         "max_retries": app_settings.retrieval.max_retries,
         "critique_threshold": app_settings.retrieval.critique_threshold,
         "rrf_k": app_settings.retrieval.rrf_k,
@@ -58,6 +60,7 @@ def _get_retrieval_settings() -> dict:
 def _get_reasoning_settings() -> dict:
     return {
         "enabled": app_settings.reasoning.enabled,
+        "max_sub_queries": app_settings.reasoning.max_sub_queries,
         "max_hops": app_settings.reasoning.max_hops,
         "context_max_chars": app_settings.reasoning.context_max_chars,
         "search_query_max_chars": app_settings.reasoning.search_query_max_chars,
@@ -185,11 +188,15 @@ async def update_settings(body: dict):
         "embedding.api_key": ("EMBEDDING_API_KEY", str),
         "embedding.query_max_chars": ("EMBEDDING_QUERY_MAX_CHARS", str),
         "retrieval.top_k": ("RETRIEVAL_TOP_K", str),
+        "retrieval.retry_top_k_multiplier": ("RETRIEVAL_RETRY_TOP_K_MULTIPLIER", str),
+        "retrieval.max_top_k": ("RETRIEVAL_MAX_TOP_K", str),
+        "retrieval.max_concurrency": ("RETRIEVAL_MAX_CONCURRENCY", str),
         "retrieval.max_retries": ("RETRIEVAL_MAX_RETRIES", str),
         "retrieval.critique_threshold": ("RETRIEVAL_CRITIQUE_THRESHOLD", str),
         "retrieval.rrf_k": ("RETRIEVAL_RRF_K", str),
         "retrieval.vector_backend": ("RETRIEVAL_VECTOR_BACKEND", str),
         "reasoning.enabled": ("REASONING_ENABLED", lambda v: str(v).lower()),
+        "reasoning.max_sub_queries": ("REASONING_MAX_SUB_QUERIES", str),
         "reasoning.max_hops": ("REASONING_MAX_HOPS", str),
         "reasoning.context_max_chars": ("REASONING_CONTEXT_MAX_CHARS", str),
         "reasoning.search_query_max_chars": ("REASONING_SEARCH_QUERY_MAX_CHARS", str),

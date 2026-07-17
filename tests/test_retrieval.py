@@ -26,6 +26,11 @@ class TestBM25Retriever:
         assert "6" in tokens
         assert "2023" in tokens
 
+    def test_tokenize_removes_question_stopwords(self):
+        tokens = BM25Retriever._tokenize("刘悦是谁")
+
+        assert tokens == ["刘悦"]
+
     def test_index_and_search(self):
         bm25 = BM25Retriever()
         ids = ["1", "2", "3"]

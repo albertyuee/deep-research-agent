@@ -16,7 +16,9 @@ from research_agent.retrieval.hybrid import HybridRetriever
 from research_agent.retrieval.service import retrieval_service
 from config.settings import settings
 
-logger = logging.getLogger(__name__)
+# Use Uvicorn's configured logger so retrieval diagnostics are written to the
+# same backend log as request and timing records in production startup.
+logger = logging.getLogger("uvicorn.error")
 
 router = APIRouter(prefix="/quick-search", tags=["quick-search"])
 
@@ -106,6 +108,34 @@ async def quick_search(req: QuickSearchRequest):
         tb = traceback.format_exc()
         logger.exception(f"检索失败: {e}")
         raise HTTPException(status_code=500, detail=f"检索失败: {type(e).__name__}: {e}\n{tb}")
+
+    logger.info(
+        "Quick search retrieval query=%r rewritten=%r top_k=%s returned=%s sources=%s",
+        query,
+        search_query if search_query != query else None,
+        req.top_k,
+        len(results),
+        [
+            {
+                "chunk_id": result.chunk_id,
+                "file_name": result.metadata.get("file_name") or result.metadata.get("source"),
+                "vector_score": round(result.vector_score, 4),
+                "bm25_score": round(result.bm25_score, 4),
+                "combined_score": round(result.combined_score, 4),
+                "rerank_score": (
+                    round(result.rerank_score, 4)
+                    if result.rerank_score is not None
+                    else None
+                ),
+            }
+            for result in results[:5]
+        ],
+    )
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(
+            "Quick search retrieval previews=%s",
+            [result.content[:100].replace("\n", " ") for result in results[:5]],
+        )
 
     sources = [
         {

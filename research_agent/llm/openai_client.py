@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 import traceback
 from typing import AsyncIterator
 
@@ -10,6 +11,7 @@ import httpx
 from langsmith import traceable
 
 from research_agent.llm.base import BaseLLMClient
+from research_agent.observability.timing import record_timing
 
 logger = logging.getLogger(__name__)
 
@@ -48,19 +50,29 @@ class OpenAIClient(BaseLLMClient):
 
     async def _post(self, body: dict) -> dict:
         """Make async API call, return parsed JSON."""
-        async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout, connect=30.0)) as client:
-            resp = await client.post(
-                f"{self.base_url}/chat/completions",
-                json=body,
-                headers=self._headers(),
-            )
-            if resp.status_code != 200:
-                body_preview = resp.text[:500]
-                logger.error(
-                    f"API returned non-200 status {resp.status_code}. Response body: {body_preview}"
+        started = time.perf_counter()
+        status_code: int | None = None
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout, connect=30.0)) as client:
+                resp = await client.post(
+                    f"{self.base_url}/chat/completions",
+                    json=body,
+                    headers=self._headers(),
                 )
-                raise RuntimeError(f"API error {resp.status_code}: {body_preview}")
-            return resp.json()
+                status_code = resp.status_code
+                if resp.status_code != 200:
+                    body_preview = resp.text[:500]
+                    logger.error(
+                        f"API returned non-200 status {resp.status_code}. Response body: {body_preview}"
+                    )
+                    raise RuntimeError(f"API error {resp.status_code}: {body_preview}")
+                return resp.json()
+        finally:
+            record_timing(
+                "llm",
+                (time.perf_counter() - started) * 1000,
+                details={"model": self.model, "status_code": status_code, "stream": False},
+            )
 
     async def _retry(self, fn, label: str):
         last_error = None
@@ -104,30 +116,40 @@ class OpenAIClient(BaseLLMClient):
         body = self._build_body(messages, **kwargs)
         body["stream"] = True
 
-        async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout, connect=30.0)) as client:
-            async with client.stream(
-                "POST",
-                f"{self.base_url}/chat/completions",
-                json=body,
-                headers=self._headers(),
-            ) as resp:
-                if resp.status_code != 200:
-                    raise RuntimeError(f"API error {resp.status_code}")
-                async for line in resp.aiter_lines():
-                    if line.startswith("data: "):
-                        data_str = line[6:]
-                        if data_str == "[DONE]":
-                            break
-                        try:
-                            d = json.loads(data_str)
-                            choices = d.get("choices", [])
-                            if choices:
-                                delta = choices[0].get("delta", {})
-                                content = delta.get("content", "")
-                                if content:
-                                    yield content
-                        except json.JSONDecodeError:
-                            pass
+        started = time.perf_counter()
+        status_code: int | None = None
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout, connect=30.0)) as client:
+                async with client.stream(
+                    "POST",
+                    f"{self.base_url}/chat/completions",
+                    json=body,
+                    headers=self._headers(),
+                ) as resp:
+                    status_code = resp.status_code
+                    if resp.status_code != 200:
+                        raise RuntimeError(f"API error {resp.status_code}")
+                    async for line in resp.aiter_lines():
+                        if line.startswith("data: "):
+                            data_str = line[6:]
+                            if data_str == "[DONE]":
+                                break
+                            try:
+                                d = json.loads(data_str)
+                                choices = d.get("choices", [])
+                                if choices:
+                                    delta = choices[0].get("delta", {})
+                                    content = delta.get("content", "")
+                                    if content:
+                                        yield content
+                            except json.JSONDecodeError:
+                                pass
+        finally:
+            record_timing(
+                "llm",
+                (time.perf_counter() - started) * 1000,
+                details={"model": self.model, "status_code": status_code, "stream": True},
+            )
 
     @traceable(name="openai_chat_structured", run_type="llm")
     async def chat_structured(

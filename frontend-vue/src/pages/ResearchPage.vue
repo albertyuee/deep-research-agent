@@ -78,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount } from 'vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { useResearchStore } from '@/stores/research'
 import { useResearch } from '@/composables/useResearch'
 import SearchForm from '@/components/research/SearchForm.vue'
@@ -91,10 +91,19 @@ import SourceList from '@/components/report/SourceList.vue'
 import type { ResearchMode } from '@/api/research'
 
 const store = useResearchStore()
-const { start, stop, cleanup } = useResearch()
+const { start, stop, resume, cleanup } = useResearch()
 
 const showContent = computed(() => {
-  return store.isRunning || store.isCancelled || store.report || store.streamingReport
+  return Boolean(
+    store.isRunning
+    || store.isCancelled
+    || store.error
+    || store.taskId
+    || store.report
+    || store.streamingReport
+    || store.researchPlan.length
+    || store.eventLog.length,
+  )
 })
 
 const steps = [
@@ -118,6 +127,10 @@ async function onStop() {
 
 onBeforeUnmount(() => {
   cleanup()
+})
+
+onMounted(() => {
+  void resume()
 })
 </script>
 

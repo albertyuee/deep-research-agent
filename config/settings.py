@@ -107,6 +107,8 @@ class RetrievalSettings(BaseSettings):
 
     top_k: int = 5
     retry_top_k_multiplier: int = 2
+    max_top_k: int = 20
+    max_concurrency: int = 2
     max_retries: int = 3
     critique_threshold: float = 0.6
     rrf_k: int = 60
@@ -121,6 +123,7 @@ class ReasoningSettings(BaseSettings):
     }
 
     enabled: bool = True
+    max_sub_queries: int = 3
     max_hops: int = 3
     context_max_chars: int = 3000
     search_query_max_chars: int = 400

@@ -202,6 +202,12 @@
             <FormField label="最大重试次数">
               <n-input-number v-model:value="form.retrieval.max_retries" size="medium" :min="0" :max="10" class="w-full" />
             </FormField>
+            <FormField label="重试 Top-K 上限">
+              <n-input-number v-model:value="form.retrieval.max_top_k" size="medium" :min="1" :max="100" class="w-full" />
+            </FormField>
+            <FormField label="子问题并发数">
+              <n-input-number v-model:value="form.retrieval.max_concurrency" size="medium" :min="1" :max="4" class="w-full" />
+            </FormField>
             <FormField :label="`相似度阈值: ${form.retrieval.critique_threshold}`">
               <n-slider v-model:value="form.retrieval.critique_threshold" :min="0.3" :max="0.95" :step="0.05" />
             </FormField>
@@ -215,6 +221,9 @@
           <div class="grid grid-cols-3 gap-x-6 gap-y-4">
             <FormField label="启用多跳推理">
               <n-switch v-model:value="form.reasoning.enabled" />
+            </FormField>
+            <FormField label="最多子问题数">
+              <n-input-number v-model:value="form.reasoning.max_sub_queries" size="medium" :min="1" :max="5" class="w-full" />
             </FormField>
             <FormField label="最大推理跳数">
               <n-input-number v-model:value="form.reasoning.max_hops" size="medium" :min="1" :max="8" class="w-full" />
@@ -336,8 +345,8 @@ function testLangSmith() { runTest('langsmith') }
 const form = reactive({
   llm: { provider: 'siliconflow', model: '', api_key: '', base_url: '', temperature: 0.3, max_tokens: 4096 },
   embedding: { mode: 'api', model: '', api_key: '', device: 'cpu', api_base_url: '', query_max_chars: 500 },
-  retrieval: { top_k: 5, max_retries: 3, critique_threshold: 0.6, rrf_k: 60, vector_backend: 'chroma' },
-  reasoning: { enabled: true, max_hops: 3, context_max_chars: 3000, search_query_max_chars: 400 },
+  retrieval: { top_k: 5, retry_top_k_multiplier: 2, max_top_k: 20, max_concurrency: 2, max_retries: 3, critique_threshold: 0.6, rrf_k: 60, vector_backend: 'chroma' },
+  reasoning: { enabled: true, max_sub_queries: 3, max_hops: 3, context_max_chars: 3000, search_query_max_chars: 400 },
   rerank: { enabled: false, provider: 'siliconflow', model: 'Qwen/Qwen3-Reranker-8B', api_key: '', base_url: 'https://api.siliconflow.cn/v1', top_n: 5, candidate_multiplier: 4, timeout: 30, instruction: '请根据查询内容判断文档与查询的相关性，并按相关性从高到低排序。' },
   milvus: { uri: '', token: '', host: 'localhost', port: 19530, collection_name: 'research_docs' },
   mcp: { web_search_enabled: false, tavily_api_key: '', tavily_max_results: 5, web_search_timeout: 30.0 },

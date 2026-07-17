@@ -46,6 +46,7 @@ def main() -> None:
         sys.exit(1)
 
     from research_agent.retrieval.document_loader import DocumentLoader
+    from research_agent.retrieval.search_text import INDEX_VERSION
     from research_agent.retrieval.vector_store import create_vector_store
 
     # 1. Load all documents
@@ -74,6 +75,7 @@ def main() -> None:
         {
             **c.metadata,
             "doc_title": c.metadata.get("file_name", "").rsplit(".", 1)[0],
+            "index_version": INDEX_VERSION,
         }
         for c in chunks
     ]

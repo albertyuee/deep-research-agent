@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from backend.services.research_service import TaskStatus, task_manager
 from research_agent.streaming import event_bus
 from research_agent.graph import build_graph
+from research_agent.observability.timing import drain_task_timings
 from research_agent.state import ResearchMode
 
 router = APIRouter(prefix="/research", tags=["research"])
@@ -163,6 +164,7 @@ async def _run_agent(
 
         final_report = result.get("final_report", "")
         raw_sources = result.get("sources", [])
+        timings = drain_task_timings(task_id)
         task_manager.set_result(task_id, {
             "report": final_report,
             "sub_queries": result.get("sub_queries", []),
@@ -172,14 +174,25 @@ async def _run_agent(
             "reasoning_paths": result.get("reasoning_paths", []),
             "step_contexts": result.get("step_contexts", {}),
             "research_mode": result.get("research_mode", research_mode),
+            "timings": timings,
         })
         task_manager.update_status(task_id, TaskStatus.COMPLETED)
+        # Emit the terminal event only after the final result is queryable.
+        # The frontend can now fetch report sources immediately without racing
+        # task_manager.set_result().
+        event_bus.emit(task_id, "done", {
+            "report_length": len(final_report),
+            "timing_count": len(timings),
+            "progress": 1.0,
+        })
 
     except asyncio.CancelledError:
+        drain_task_timings(task_id)
         print(f"[AGENT {task_id}] Cancelled by user", flush=True, file=sys.stderr)
         event_bus.emit(task_id, "cancelled", {"message": "研究已被用户取消"})
         task_manager.update_status(task_id, TaskStatus.CANCELLED)
     except Exception as e:
+        drain_task_timings(task_id)
         task_manager.update_status(task_id, TaskStatus.FAILED, error=str(e))
         event_bus.emit(task_id, "error", {"message": str(e)})
     finally:

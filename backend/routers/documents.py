@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from research_agent.retrieval.document_loader import DocumentLoader, SUPPORTED_EXTENSIONS
 from research_agent.retrieval.bm25 import BM25Retriever
 from research_agent.retrieval.service import retrieval_service
+from research_agent.retrieval.search_text import INDEX_VERSION
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
@@ -216,6 +217,7 @@ async def upload_document(file: UploadFile = File(...)):
                 "doc_title": Path(safe_filename).stem,
                 "source": safe_filename,
                 "upload_id": file_id,
+                "index_version": INDEX_VERSION,
             }
             for c in chunks
         ]

@@ -18,7 +18,7 @@
                 <div class="plan-title">{{ plan.question }}</div>
                 <div class="plan-meta">
                   <span>{{ strategyIcon(plan.strategy) }} {{ strategyLabel(plan.strategy) }}</span>
-                  <span>Hop {{ plan.hop || 1 }}</span>
+                  <span>第 {{ plan.hop || 1 }} 跳</span>
                   <span v-if="plan.dependsOn?.length">依赖 {{ plan.dependsOn.join('、') }}</span>
                 </div>
               </div>
@@ -39,7 +39,7 @@
     <n-card v-if="store.reasoningContexts.length" title="多跳上下文" size="small" :bordered="false">
       <div v-for="context in store.reasoningContexts" :key="context.step" class="mb-3 last:mb-0">
         <div class="flex items-center gap-2 mb-1">
-          <n-tag size="small" :type="context.lowConfidence ? 'warning' : 'info'">Hop {{ context.hop }}</n-tag>
+          <n-tag size="small" :type="context.lowConfidence ? 'warning' : 'info'">第 {{ context.hop }} 跳</n-tag>
           <span class="text-sm text-gray-600">步骤 {{ context.step }}</span>
           <span class="text-xs text-gray-400">
             {{ context.entityCount }} 个实体 / {{ context.factCount }} 条事实
@@ -53,11 +53,11 @@
 
     <n-card v-if="store.retrievalProgress" title="检索详情" size="small" :bordered="false">
       <div class="text-sm space-y-1">
-        <div><strong>步骤:</strong> {{ store.retrievalProgress.step }}/{{ store.retrievalProgress.total }}</div>
-        <div><strong>策略:</strong> {{ store.retrievalProgress.strategy }}</div>
+        <div><strong>步骤：</strong>{{ store.retrievalProgress.step }}/{{ store.retrievalProgress.total }}</div>
+        <div><strong>策略：</strong>{{ strategyLabel(store.retrievalProgress.strategy) }}</div>
         <div v-if="store.retrievalProgress.results > 0">
-          <strong>结果:</strong> {{ store.retrievalProgress.results }} 条 |
-          <strong>相似度:</strong> <ScoreBadge :score="store.retrievalProgress.topScore" />
+          <strong>结果：</strong>{{ store.retrievalProgress.results }} 条 |
+          <strong>相似度：</strong><ScoreBadge :score="store.retrievalProgress.topScore" />
         </div>
         <div v-if="store.retrievalProgress.retry > 0" class="text-amber-600">
           已重试 {{ store.retrievalProgress.retry }} 次
@@ -76,10 +76,10 @@
     </n-card>
 
     <n-card v-if="store.critiqueResults.length" title="质量评估" size="small" :bordered="false">
-      <div v-for="c in store.critiqueResults" :key="c.step" class="mb-3 last:mb-0">
+      <div v-for="(c, index) in store.critiqueResults" :key="`${c.step}-${c.attempt || 1}-${index}`" class="mb-3 last:mb-0">
         <div class="flex items-center gap-2 mb-1">
           <n-tag :type="c.passed ? 'success' : 'warning'" size="small">
-            {{ c.passed ? '\u2713 PASS' : '\u26A0 FAIL' }}
+            {{ c.passed ? '\u2713 通过' : '\u26A0 未通过' }}
           </n-tag>
           <span class="text-sm text-gray-600">步骤 {{ c.step }}</span>
         </div>
@@ -96,15 +96,15 @@
             {{ c.reasoning }}
           </div>
           <div v-if="!c.passed && c.retrySuggestion" class="text-xs text-amber-600">
-            \u{1F4A1} 建议: {{ c.retrySuggestion }}
+            \u{1F4A1} 建议：{{ c.retrySuggestion }}
           </div>
         </div>
       </div>
     </n-card>
 
     <n-card v-if="store.retryHistory.length" title="重试历史" size="small" :bordered="false">
-      <div v-for="h in store.retryHistory" :key="h.attempt" class="text-sm mb-1">
-        <strong>第 {{ h.attempt }} 次:</strong>
+      <div v-for="(h, index) in store.retryHistory" :key="`${h.step || 1}-${h.attempt}-${index}`" class="text-sm mb-1">
+        <strong>步骤 {{ h.step || 1 }} · 第 {{ h.attempt }} 次：</strong>
         上次评分 <ScoreBadge :score="h.score" />
         <span v-if="h.suggestion" class="text-xs text-gray-400"> — {{ h.suggestion }}</span>
       </div>
@@ -117,8 +117,32 @@
       </div>
       <n-divider style="margin: 8px 0" />
       <div class="flex justify-between text-sm">
-        <span class="text-gray-600">累计</span>
+        <span class="text-gray-600">各步骤合计</span>
         <span class="text-gray-800 font-semibold">{{ totalTime.toFixed(1) }}s</span>
+      </div>
+    </n-card>
+
+    <n-card v-if="store.backendTimings.length" title="后端性能" size="small" :bordered="false">
+      <template #header-extra>
+        <n-tag size="small" type="info">最近 {{ visibleBackendTimings.length }} 条</n-tag>
+      </template>
+      <div class="timing-list">
+        <div
+          v-for="(timing, index) in visibleBackendTimings"
+          :key="`${timing.category}-${timing.operation}-${timing.step || 0}-${timing.attempt || 0}-${index}`"
+          class="timing-row"
+        >
+          <div class="timing-main">
+            <n-tag size="tiny" :type="timingType(timing.category)">
+              {{ timingCategoryLabel(timing.category) }}
+            </n-tag>
+            <span class="timing-operation">{{ timingOperationLabel(timing.operation) }}</span>
+            <span v-if="timing.step" class="timing-context">
+              步骤 {{ timing.step }}<template v-if="timing.attempt"> · 重试 {{ timing.attempt }}</template>
+            </span>
+          </div>
+          <span class="timing-duration">{{ formatDuration(timing.durationMs) }}</span>
+        </div>
       </div>
     </n-card>
   </div>
@@ -141,6 +165,10 @@ const isLinkedPlan = computed(() => (
 const totalTime = computed(() => {
   return Object.values(store.phaseDurations).reduce((a, b) => a + b, 0)
 })
+
+const visibleBackendTimings = computed(() => (
+  store.backendTimings.slice(-40).reverse()
+))
 
 const strategyIconMap: Record<string, string> = {
   semantic: '\u{1F9E0}',
@@ -209,12 +237,44 @@ function scoreBarClass(score: number): string {
 
 const timingLabelMap: Record<string, string> = {
   decomposition: '拆解问题',
-  evaluation: '质量评估',
+  critique: '质量评估',
   synthesis: '合成报告',
 }
 
 function timingLabel(key: string): string {
-  return timingLabelMap[key] || key.replace('retrieval_', '检索步骤 ')
+  if (key.startsWith('retrieval_')) return key.replace('retrieval_', '检索步骤 ')
+  if (key.startsWith('critique_')) return key.replace('critique_', '评估步骤 ')
+  return timingLabelMap[key] || key
+}
+
+const timingOperationLabels: Record<string, string> = {
+  decomposition: '问题拆解',
+  research_layer: '依赖层',
+  research_step: '子问题总耗时',
+  local_retrieval: '本地检索',
+  web_search: '联网搜索',
+  strategy_selection: '策略选择',
+  query_rewrite: '查询改写',
+  reasoning_query: '上下文查询',
+  critique: '质量评估',
+  context_extraction: '上下文提取',
+  synthesis: '报告生成',
+}
+
+function timingOperationLabel(operation: string): string {
+  return timingOperationLabels[operation] || operation
+}
+
+function timingCategoryLabel(category: string): string {
+  return ({ llm: '大模型', embedding: '向量化', web_search: '联网搜索', stage: '阶段' } as Record<string, string>)[category] || category
+}
+
+function timingType(category: string): 'default' | 'info' | 'success' | 'warning' {
+  return ({ llm: 'warning', embedding: 'info', web_search: 'success', stage: 'default' } as Record<string, 'default' | 'info' | 'success' | 'warning'>)[category] || 'default'
+}
+
+function formatDuration(durationMs: number): string {
+  return durationMs >= 1000 ? `${(durationMs / 1000).toFixed(1)}s` : `${durationMs.toFixed(0)}ms`
 }
 </script>
 
@@ -316,5 +376,47 @@ function timingLabel(key: string): string {
 
 .plan-list.linked {
   gap: 0;
+}
+
+.timing-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.timing-row,
+.timing-main {
+  display: flex;
+  align-items: center;
+}
+
+.timing-row {
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.72rem;
+}
+
+.timing-main {
+  min-width: 0;
+  gap: 6px;
+}
+
+.timing-operation {
+  color: #4b5563;
+  white-space: nowrap;
+}
+
+.timing-context {
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+.timing-duration {
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  white-space: nowrap;
 }
 </style>

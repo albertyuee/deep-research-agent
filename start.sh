@@ -12,23 +12,72 @@ echo "  Deep Research Agent 启动脚本"
 echo "=========================================="
 echo ""
 
-# 检查 Python 版本
-PYTHON_VERSION=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
+# 始终使用项目虚拟环境，避免全局 Python 包版本互相污染。
+SYSTEM_PYTHON=$(command -v python3 || true)
+if [ -z "$SYSTEM_PYTHON" ]; then
+    echo "❌ 未找到 python3，请先安装 Python >= 3.12"
+    exit 1
+fi
+
+VENV_DIR="$SCRIPT_DIR/.venv"
+if [ ! -x "$VENV_DIR/bin/python" ]; then
+    echo "📦 正在创建项目虚拟环境: .venv"
+    "$SYSTEM_PYTHON" -m venv "$VENV_DIR"
+fi
+
+PYTHON="$VENV_DIR/bin/python"
+export VIRTUAL_ENV="$VENV_DIR"
+export PATH="$VENV_DIR/bin:$PATH"
+
+# 检查虚拟环境的 Python 版本
+PYTHON_VERSION=$("$PYTHON" -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
 REQUIRED_VERSION="3.12"
 if [ "$(printf '%s\n' "$REQUIRED_VERSION" "$PYTHON_VERSION" | sort -V | head -n1)" != "$REQUIRED_VERSION" ]; then
     echo "❌ Python 版本要求 >= $REQUIRED_VERSION，当前版本: $PYTHON_VERSION"
     exit 1
 fi
-echo "✓ Python 版本: $PYTHON_VERSION"
+echo "✓ Python 版本: $PYTHON_VERSION ($PYTHON)"
 
-# 检查依赖是否已安装
-if ! python3 -c "import fastapi" &>/dev/null; then
+# 检查核心依赖和版本。只检查 fastapi 是否能导入会漏掉版本冲突，
+# 例如新版 pydantic-settings 搭配旧版 pydantic。
+DEPENDENCIES_OK=true
+if ! "$PYTHON" - <<'PY' &>/dev/null
+from importlib.metadata import version
+from packaging.version import Version
+
+minimum_versions = {
+    "pydantic": "2.8.0",
+    "pydantic-settings": "2.5.0",
+    "fastapi": "0.115.0",
+    "uvicorn": "0.30.0",
+    "chromadb": "0.5.0",
+    "httpx": "0.27.1",
+}
+for package, minimum in minimum_versions.items():
+    assert Version(version(package)) >= Version(minimum), (
+        f"{package} {version(package)} < {minimum}"
+    )
+
+import chromadb  # noqa: F401
+import fastapi  # noqa: F401
+import pydantic  # noqa: F401
+import pydantic_settings  # noqa: F401
+import socksio  # noqa: F401 — required when all_proxy uses socks5://
+PY
+then
+    DEPENDENCIES_OK=false
+elif ! "$PYTHON" -m pip check &>/dev/null; then
+    DEPENDENCIES_OK=false
+fi
+
+if [ "$DEPENDENCIES_OK" != "true" ]; then
     echo ""
-    echo "📦 正在安装依赖..."
-    pip install -e ".[dev]" -q
+    echo "📦 正在安装或修复虚拟环境依赖..."
+    "$PYTHON" -m pip install -e ".[dev]"
+    "$PYTHON" -m pip check
     echo "✓ 依赖安装完成"
 else
-    echo "✓ 依赖已安装"
+    echo "✓ 虚拟环境依赖完整"
 fi
 
 # 检查 .env 文件
@@ -57,7 +106,7 @@ fi
 # Otherwise grpcio may send the TLS handshake to all_proxy and fail with
 # "Handshake read failed". Only the configured host is added; API traffic
 # such as SiliconFlow and GitHub can continue to use the user's proxy.
-MILVUS_BYPASS_HOST=$(python3 -c '
+MILVUS_BYPASS_HOST=$("$PYTHON" -c '
 from urllib.parse import urlparse
 from config.settings import settings
 
@@ -83,59 +132,50 @@ if [ ! -d "data/sample_docs" ]; then
 else
     echo ""
     echo "📚 检查示例文档索引状态..."
-    # Skip indexing if ChromaDB already has data
-    if python3 -c "
-from research_agent.retrieval.vector_store import VectorStore
-vs = VectorStore()
+    # Use the same configured backend as the runtime (Chroma or Milvus).
+    if "$PYTHON" -c "
+from research_agent.retrieval.vector_store import create_vector_store
+vs = create_vector_store()
 if vs.count > 0:
     print(f'SKIP:{vs.count}')
 " 2>/dev/null | grep -q "SKIP:"; then
-        CHUNKS=$(python3 -c "
-from research_agent.retrieval.vector_store import VectorStore
-print(VectorStore().count)
+        CHUNKS=$("$PYTHON" -c "
+from research_agent.retrieval.vector_store import create_vector_store
+print(create_vector_store().count)
 " 2>/dev/null)
-        echo "   ✓ 向量库已有 ${CHUNKS} 个 chunk，跳过索引"
+        VECTOR_BACKEND=$("$PYTHON" -c "from config.settings import settings; print(settings.retrieval.vector_backend)" 2>/dev/null)
+        echo "   ✓ ${VECTOR_BACKEND} 向量库已有 ${CHUNKS} 个 chunk，跳过索引"
     else
         echo "   (首次运行需要下载 Embedding 模型，请耐心等待)"
-        python3 -c "
-from research_agent.retrieval.vector_store import VectorStore
-from research_agent.retrieval.bm25 import BM25Retriever
+        if ! "$PYTHON" -c "
+from research_agent.retrieval.vector_store import create_vector_store
+from research_agent.retrieval.document_loader import DocumentLoader
+from research_agent.retrieval.search_text import INDEX_VERSION
 from pathlib import Path
 
 data_dir = Path('data/sample_docs')
-docs = []
-for f in data_dir.glob('*.md'):
-    with open(f) as fp:
-        docs.append((f.stem, fp.read(), {'doc_title': f.stem, 'source': f.name}))
-
-ids = [d[0] for d in docs]
-texts = [d[1] for d in docs]
-metadatas = [d[2] for d in docs]
-
-chunks = []
-chunk_ids = []
-chunk_metas = []
-for i, text in enumerate(texts):
-    paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
-    for j, para in enumerate(paragraphs):
-        if len(para) > 50:
-            chunks.append(para)
-            chunk_ids.append(f'{ids[i]}_chunk_{j}')
-            chunk_metas.append({**metadatas[i], 'chunk_index': j})
+loaded_chunks = DocumentLoader().load_directory(data_dir)
+chunks = [chunk.content for chunk in loaded_chunks]
+chunk_ids = [chunk.chunk_id for chunk in loaded_chunks]
+chunk_metas = [
+    {
+        **chunk.metadata,
+        'doc_title': Path(chunk.metadata.get('file_name', '')).stem,
+        'source': chunk.metadata.get('file_name', ''),
+        'index_version': INDEX_VERSION,
+    }
+    for chunk in loaded_chunks
+]
 
 if chunks:
     print('  ⏳ 加载 Embedding 模型...')
-    vs = VectorStore()
+    vs = create_vector_store()
     vs.add_documents(chunk_ids, chunks, chunk_metas)
-    print(f'  ✓ 向量库索引完成: {vs.count} 个 chunk')
-
-    bm25 = BM25Retriever()
-    bm25.index_documents(chunk_ids, chunks, chunk_metas)
-    print(f'  ✓ BM25 索引完成: {len(chunks)} 条')
+    print(f'  ✓ {vs.__class__.__name__} 索引完成: {vs.count} 个 chunk')
+    print('  ✓ BM25 将在后端启动时从持久向量库自动重建')
 else:
     print('  ⚠️  无有效文档块，跳过索引')
-" 2>&1
-        if [ $? -ne 0 ]; then
+" 2>&1; then
             echo "  ⚠️  文档索引失败，服务仍可启动（上传/检索功能可能受影响）"
         fi
     fi
@@ -160,16 +200,25 @@ mkdir -p "$LOG_DIR"
 
 # 启动后端
 echo "🚀 启动后端 (FastAPI)..."
-uvicorn backend.main:app --host 127.0.0.1 --port 8000 > "$LOG_DIR/backend.log" 2>&1 &
+"$PYTHON" -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 > "$LOG_DIR/backend.log" 2>&1 &
 BACKEND_PID=$!
 echo "   后端 PID: $BACKEND_PID"
 
-# 等待后端启动
-sleep 2
+# 等待后端启动。首次加载向量库和 MCP 可能超过几秒，不能用固定
+# sleep 过早判定失败。
+BACKEND_READY=false
+for _ in $(seq 1 30); do
+    if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+        BACKEND_READY=true
+        break
+    fi
+    if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+        break
+    fi
+    sleep 1
+done
 
-# 检查后端是否启动成功
-sleep 2
-if ! curl -s http://localhost:8000/health > /dev/null 2>&1; then
+if [ "$BACKEND_READY" != "true" ]; then
     echo "❌ 后端启动失败，请检查日志: $LOG_DIR/backend.log"
     kill $BACKEND_PID 2>/dev/null || true
     exit 1
@@ -193,8 +242,19 @@ cd "$SCRIPT_DIR"
 echo "   前端 PID: $FRONTEND_PID"
 
 # 等待前端启动并打开浏览器
-sleep 3
-if lsof -ti :5173 > /dev/null 2>&1; then
+FRONTEND_READY=false
+for _ in $(seq 1 30); do
+    if curl -s http://localhost:5173/ > /dev/null 2>&1; then
+        FRONTEND_READY=true
+        break
+    fi
+    if ! kill -0 "$FRONTEND_PID" 2>/dev/null; then
+        break
+    fi
+    sleep 1
+done
+
+if [ "$FRONTEND_READY" = "true" ]; then
     echo "✓ 前端启动成功"
     echo ""
     echo "✅ 所有服务已启动！"
@@ -208,6 +268,9 @@ if lsof -ti :5173 > /dev/null 2>&1; then
     fi
 else
     echo "❌ 前端启动失败，请检查日志: $LOG_DIR/frontend.log"
+    kill "$BACKEND_PID" 2>/dev/null || true
+    kill "$FRONTEND_PID" 2>/dev/null || true
+    exit 1
 fi
 
 echo ""

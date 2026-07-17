@@ -182,31 +182,64 @@ class DocumentLoader:
         file_name: str = "",
         file_type: str = "",
     ) -> list[LoadedChunk]:
-        """Split text into chunks by double-newline, filtering short chunks.
-        Long paragraphs are further split to avoid embedding API limits.
+        """Split text into chunks without discarding short semantic headings.
+
+        Short paragraphs such as names and section headings are buffered and
+        merged with the following paragraph. Any trailing short text is merged
+        into the previous chunk when possible, otherwise it remains searchable
+        as its own chunk.
         """
         paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-        chunks: list[LoadedChunk] = []
-        chunk_idx = 0
+        contents: list[str] = []
+        short_parts: list[str] = []
+
+        def flush_short_parts() -> None:
+            if not short_parts:
+                return
+            buffered = "\n".join(short_parts).strip()
+            short_parts.clear()
+            if not buffered:
+                return
+            if contents and len(contents[-1]) + 1 + len(buffered) <= self.max_chunk_chars:
+                contents[-1] = f"{contents[-1]}\n{buffered}"
+            else:
+                contents.append(buffered)
 
         for para in paragraphs:
             sub_chunks = self._split_long_text(para)
             for sub in sub_chunks:
                 if len(sub) < self.min_chunk_length:
+                    short_parts.append(sub)
+                    if len("\n".join(short_parts)) >= self.min_chunk_length:
+                        contents.append("\n".join(short_parts).strip())
+                        short_parts.clear()
                     continue
-                chunk_id = f"{Path(source_path).stem}_chunk_{chunk_idx}" if source_path else f"chunk_{chunk_idx}"
-                chunks.append(
-                    LoadedChunk(
-                        chunk_id=chunk_id,
-                        content=sub,
-                        metadata={
-                            "source_path": source_path,
-                            "file_name": file_name,
-                            "file_type": file_type,
-                            "chunk_index": chunk_idx,
-                        },
-                    )
+                if short_parts:
+                    buffered = "\n".join(short_parts).strip()
+                    combined = f"{buffered}\n{sub}".strip()
+                    short_parts.clear()
+                    if len(combined) <= self.max_chunk_chars:
+                        contents.append(combined)
+                        continue
+                    contents.append(buffered)
+                contents.append(sub)
+
+        flush_short_parts()
+
+        chunks: list[LoadedChunk] = []
+        for chunk_idx, content in enumerate(contents):
+            chunk_id = f"{Path(source_path).stem}_chunk_{chunk_idx}" if source_path else f"chunk_{chunk_idx}"
+            chunks.append(
+                LoadedChunk(
+                    chunk_id=chunk_id,
+                    content=content,
+                    metadata={
+                        "source_path": source_path,
+                        "file_name": file_name,
+                        "file_type": file_type,
+                        "chunk_index": chunk_idx,
+                    },
                 )
-                chunk_idx += 1
+            )
 
         return chunks

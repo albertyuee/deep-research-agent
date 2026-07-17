@@ -41,7 +41,9 @@ def _build_system_prompt(
     }
     mode_instruction = mode_instructions[research_mode]
 
-    return f"""你是一个专业的研究规划助手。你的任务是将用户提出的复杂问题拆解为 2-5 个研究步骤。
+    max_sub_queries = settings.reasoning.max_sub_queries
+
+    return f"""你是一个专业的研究规划助手。你的任务是将用户提出的复杂问题拆解为 1-{max_sub_queries} 个研究步骤。
 
 拆解原则：
 1. 当前研究模式：{research_mode}。{mode_instruction}
@@ -51,6 +53,8 @@ def _build_system_prompt(
 5. 每个步骤必须标注推荐的检索策略、资料来源和 hop
 6. 多跳步骤的 question 可以使用前序步骤产出的实体/事实，input_slots 写明需要哪些信息
 7. 最大允许跳数为 {max_hops}
+8. question 和 rationale 必须使用简体中文；框架名、产品名等专有名词可以保留英文
+9. 即使用户问题或参考资料包含英文，也要用中文描述研究步骤和规划理由
 
 检索策略（strategy）：
 - "semantic"：语义向量检索，适合概念性、开放性、需要理解语义的问题
@@ -125,6 +129,7 @@ async def decompose_query(
         "properties": {
             "sub_queries": {
                 "type": "array",
+                "maxItems": settings.reasoning.max_sub_queries,
                 "items": {
                     "type": "object",
                     "properties": {

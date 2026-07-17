@@ -86,3 +86,35 @@ class TestCritiqueResult:
         )
         assert not result.passed
         assert result.retry_suggestion is not None
+
+
+def test_critique_prompt_requires_chinese_output():
+    from research_agent.critique.scorer import CRITIQUE_SYSTEM_PROMPT
+
+    assert "reasoning 和 retry_suggestion 必须使用简体中文" in CRITIQUE_SYSTEM_PROMPT
+    assert "禁止输出完整的英文说明句" in CRITIQUE_SYSTEM_PROMPT
+
+
+@pytest.mark.asyncio
+async def test_english_provider_feedback_falls_back_to_chinese():
+    from research_agent.critique.scorer import critique_retrieval
+
+    class EnglishFeedbackClient:
+        async def chat_structured(self, messages, schema):
+            return {
+                "relevance_score": 0.1,
+                "completeness_score": 0.1,
+                "reasoning": "The retrieved content is completely irrelevant.",
+                "retry_suggestion": "Expand the search with more keywords.",
+            }
+
+    result = await critique_retrieval(
+        EnglishFeedbackClient(),
+        "比较 Haystack 和 LlamaIndex",
+        ["unrelated content"],
+    )
+
+    assert "检索内容" in result.reasoning
+    assert result.retry_suggestion is not None
+    assert "建议" in result.retry_suggestion
+    assert "completely irrelevant" not in result.reasoning

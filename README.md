@@ -38,7 +38,7 @@
 
 ```text
 用户问题
-  -> Query Decomposition：拆解为 2-5 个研究步骤与依赖关系
+  -> Query Decomposition：拆解为最多 3 个研究步骤与依赖关系（可配置）
   -> Strategy Routing：为每个子问题选择 semantic / keyword / hybrid
   -> Hybrid Retrieval：向量检索 + BM25 + RRF 粗排
   -> Optional Rerank：SiliconFlow Qwen Reranker 二阶段精排
@@ -155,8 +155,14 @@ Hop、依赖步骤、当前状态、多跳上下文和低置信度提示。
 
 ### 2. 安装依赖
 
+`./start.sh` 会自动创建并使用项目目录下的 `.venv`，同时检查依赖版本与冲突，通常无需手动安装。
+示例文档索引也会遵循 `RETRIEVAL_VECTOR_BACKEND`，与后端统一使用 Chroma 或 Milvus，不会写入另一套向量库。
+
+需要手动安装时：
+
 ```bash
-pip install -e ".[dev]"
+python3 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
 ```
 
 前端依赖会在 `./start.sh` 首次启动时自动安装，也可以手动安装：
@@ -199,7 +205,7 @@ EMBEDDING_API_KEY=sk-your-siliconflow-api-key-here
 
 ```bash
 # 终端 1：后端
-uvicorn backend.main:app --reload --port 8000
+.venv/bin/python -m uvicorn backend.main:app --reload --port 8000
 
 # 终端 2：前端
 cd frontend-vue && npm run dev
@@ -228,6 +234,7 @@ export no_proxy=127.0.0.1,localhost
 
 `start.sh` 启动的后端会继承这些变量，并自动将当前配置的 Milvus/Zilliz 主机加入 `no_proxy`，
 避免 gRPC TLS 握手被错误发送到 HTTP/SOCKS 代理。重新打开终端后需要再次设置代理，或将其加入自己的 Shell 配置。
+项目通过 `httpx[socks]` 安装 SOCKS 支持；`start.sh` 也会检查 `socksio`，缺失时自动修复虚拟环境依赖。
 
 ---
 
@@ -303,6 +310,18 @@ MILVUS_TOKEN=your-zilliz-token
 MILVUS_COLLECTION_NAME=research_docs
 ```
 
+深度研究检索与并发参数：
+
+```env
+RETRIEVAL_TOP_K=5
+RETRIEVAL_RETRY_TOP_K_MULTIPLIER=2
+RETRIEVAL_MAX_TOP_K=20
+RETRIEVAL_MAX_CONCURRENCY=2
+RETRIEVAL_MAX_RETRIES=3
+```
+
+同一依赖层的独立子问题会并发执行，但不会超过 `RETRIEVAL_MAX_CONCURRENCY`；有依赖的下一层仍会等待前序层完成。本地检索和联网搜索也会并行执行。
+
 ### Web Search，可选
 
 ```env
@@ -316,6 +335,7 @@ MCP_WEB_SEARCH_TIMEOUT=30
 
 ```env
 REASONING_ENABLED=true
+REASONING_MAX_SUB_QUERIES=3
 REASONING_MAX_HOPS=3
 REASONING_CONTEXT_MAX_CHARS=3000
 REASONING_SEARCH_QUERY_MAX_CHARS=400
@@ -357,10 +377,10 @@ EMBEDDING_QUERY_MAX_CHARS=500
 
 ```bash
 # 如需代理，先设置上一节中的 proxy 环境变量
-python3 scripts/download_open_source_corpus.py
+.venv/bin/python scripts/download_open_source_corpus.py
 
 # 将下载内容写入当前配置的 Chroma 或 Milvus 知识库
-python3 scripts/index_documents.py data/open_source_docs
+.venv/bin/python scripts/index_documents.py data/open_source_docs
 ```
 
 资料默认保存在 `data/open_source_docs/`，`SOURCE_MANIFEST.md` 记录上游链接、许可证和建议测试问题。
@@ -454,7 +474,8 @@ deep-research-agent/
 ├── config/                          # pydantic-settings 配置
 │   ├── settings.py
 │   └── .env.example
-├── data/                            # 示例文档、开放语料、ChromaDB、上传文件
+├── data/                            # 示例文档、开放语料、评测集、向量库、上传文件
+│   ├── evaluation/                  # 不含私人资料的固定检索评测集
 │   └── open_source_docs/            # 开放许可测试语料与来源清单
 ├── frontend-vue/                    # Vue 3 前端
 │   └── src/
@@ -466,6 +487,7 @@ deep-research-agent/
 ├── mcp_servers/                     # MCP Server 实现
 ├── research_agent/                  # 核心 Agent 逻辑
 │   ├── critique/                    # 质量评估与重试控制
+│   ├── evaluation/                  # Hit@K、MRR、来源召回率等评测指标
 │   ├── llm/                         # 多 Provider LLM 客户端
 │   ├── planner/                     # 查询拆解与研究计划
 │   ├── reasoning/                   # 多跳 working memory 与上下文提取
@@ -491,8 +513,7 @@ deep-research-agent/
 Python 测试：
 
 ```bash
-PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests -q
-# 48 passed
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest tests -q
 ```
 
 前端构建：
@@ -501,6 +522,19 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests -q
 cd frontend-vue
 npm run build
 ```
+
+固定检索评测集只使用项目中的开放许可资料，不包含用户上传的简历或其他私人文档：
+
+```bash
+.venv/bin/python scripts/evaluate_retrieval.py
+
+# 调整 Top-K，并保存完整 JSON 报告
+.venv/bin/python scripts/evaluate_retrieval.py \
+  --top-k 10 \
+  --output reports/retrieval-evaluation.json
+```
+
+评测输出包括 `Hit@1`、`Hit@K`、MRR、来源召回率和平均检索耗时。默认要求 `Hit@5` 与来源召回率均不低于 `75%`，未达到阈值时命令返回非零退出码，可直接接入 CI。
 
 真实接口连通性已验证：
 

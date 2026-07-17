@@ -70,22 +70,35 @@
       :border-radius="4"
     />
 
-    <div v-if="store.startedAt && store.isRunning" class="text-xs text-gray-400 mt-1">
-      已用时: {{ elapsedSeconds }}s
+    <div v-if="store.startedAt" class="text-xs text-gray-400 mt-1">
+      {{ store.isRunning ? '已用时' : '总用时' }}: {{ elapsedSeconds }}s
     </div>
   </n-card>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useResearchStore } from '@/stores/research'
 
 const store = useResearchStore()
 const keys = ['decomposition', 'retrieval', 'critique', 'synthesis']
+const now = ref(Date.now())
+let timer: ReturnType<typeof setInterval> | null = null
 
 const elapsedSeconds = computed(() => {
   if (!store.startedAt) return 0
-  return Math.floor((Date.now() - store.startedAt) / 1000)
+  const end = store.isRunning ? now.value : (store.finishedAt || now.value)
+  return Math.max(0, Math.floor((end - store.startedAt) / 1000))
+})
+
+onMounted(() => {
+  timer = setInterval(() => {
+    now.value = Date.now()
+  }, 1000)
+})
+
+onBeforeUnmount(() => {
+  if (timer) clearInterval(timer)
 })
 
 function dotIcon(key: string): string {

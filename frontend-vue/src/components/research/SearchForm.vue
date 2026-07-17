@@ -11,8 +11,7 @@
           :disabled="isRunning"
           size="large"
           round
-          @keydown.enter.ctrl="emitSubmit"
-          @keydown.enter.meta="emitSubmit"
+          @keydown="handleKeydown"
         />
         <div class="search-actions">
           <n-button
@@ -207,6 +206,13 @@ function emitSubmit() {
   const query = inputText.value.trim()
   if (query) {
     emit('submit', query, enableWebSearch.value, researchMode.value, maxHops.value)
+  }
+}
+
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+    event.preventDefault()
+    emitSubmit()
   }
 }
 

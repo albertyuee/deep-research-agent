@@ -7,6 +7,8 @@ import jieba
 import numpy as np
 from rank_bm25 import BM25Okapi
 
+from research_agent.retrieval.search_text import build_searchable_text
+
 
 class BM25Result(NamedTuple):
     chunk_id: str
@@ -17,6 +19,10 @@ class BM25Result(NamedTuple):
 
 class BM25Retriever:
     """BM25 keyword-based retrieval."""
+
+    _STOPWORDS = frozenset({
+        "的", "了", "是", "谁", "什么", "吗", "呢", "怎样", "怎么", "如何",
+    })
 
     def __init__(self):
         self._documents: list[dict] = []
@@ -30,7 +36,11 @@ class BM25Retriever:
         for match in re.finditer(r"[\u4e00-\u9fff]+|[a-zA-Z]+|\d+", text.lower()):
             segment = match.group()
             if re.fullmatch(r"[\u4e00-\u9fff]+", segment):
-                tokens.extend(token.strip() for token in jieba.lcut(segment) if token.strip())
+                tokens.extend(
+                    token.strip()
+                    for token in jieba.lcut(segment)
+                    if token.strip() and token.strip() not in BM25Retriever._STOPWORDS
+                )
             else:
                 tokens.append(segment)
         return tokens
@@ -44,7 +54,10 @@ class BM25Retriever:
             {"id": id_, "content": text, "metadata": meta}
             for id_, text, meta in zip(ids, texts, metadatas)
         ]
-        self._tokenized_corpus = [self._tokenize(text) for text in texts]
+        self._tokenized_corpus = [
+            self._tokenize(build_searchable_text(text, meta))
+            for text, meta in zip(texts, metadatas)
+        ]
         self._bm25 = BM25Okapi(self._tokenized_corpus) if self._tokenized_corpus else None
 
     def search(self, query: str, top_k: int = 5) -> list[BM25Result]:

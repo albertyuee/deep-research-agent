@@ -92,3 +92,8 @@ class TestResearchModePrompts:
 
         assert "至少生成一条依赖关系" in prompt
         assert "最大允许跳数为 4" in prompt
+
+    def test_step_text_must_be_chinese(self):
+        prompt = _build_system_prompt(research_mode="auto", max_hops=3)
+
+        assert "question 和 rationale 必须使用简体中文" in prompt

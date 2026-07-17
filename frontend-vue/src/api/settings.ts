@@ -22,6 +22,8 @@ export interface EmbeddingSettings {
 export interface RetrievalSettings {
   top_k: number
   retry_top_k_multiplier: number
+  max_top_k: number
+  max_concurrency: number
   max_retries: number
   critique_threshold: number
   rrf_k: number
@@ -30,6 +32,7 @@ export interface RetrievalSettings {
 
 export interface ReasoningSettings {
   enabled: boolean
+  max_sub_queries: number
   max_hops: number
   context_max_chars: number
   search_query_max_chars: number
