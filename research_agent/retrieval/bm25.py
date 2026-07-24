@@ -60,7 +60,12 @@ class BM25Retriever:
         ]
         self._bm25 = BM25Okapi(self._tokenized_corpus) if self._tokenized_corpus else None
 
-    def search(self, query: str, top_k: int = 5) -> list[BM25Result]:
+    def search(
+        self,
+        query: str,
+        top_k: int = 5,
+        allowed_upload_ids: set[str] | None = None,
+    ) -> list[BM25Result]:
         """Search using BM25."""
         if self._bm25 is None:
             return []
@@ -69,14 +74,18 @@ class BM25Retriever:
         scores = self._bm25.get_scores(tokenized_query)
 
         # Get top-k indices
-        top_indices = np.argsort(scores)[::-1][:top_k]
+        ranked_indices = np.argsort(scores)[::-1]
 
         results = []
         max_score = scores.max() if scores.size > 0 else 1.0
-        for idx in top_indices:
+        for idx in ranked_indices:
+            doc = self._documents[idx]
+            if allowed_upload_ids is not None and str(doc["metadata"].get("upload_id", "")) not in allowed_upload_ids:
+                continue
+            if len(results) >= top_k:
+                break
             if scores[idx] > 0:
                 normalized_score = float(scores[idx] / max_score) if max_score > 0 else 0.0
-                doc = self._documents[idx]
                 results.append(
                     BM25Result(
                         chunk_id=doc["id"],

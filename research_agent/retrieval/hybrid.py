@@ -45,15 +45,35 @@ class HybridRetriever:
 
     @traceable(name="hybrid_search", run_type="retriever")
     def search(
-        self, query: str, top_k: int | None = None, vector_weight: float = 0.5
+        self,
+        query: str,
+        top_k: int | None = None,
+        vector_weight: float = 0.5,
+        allowed_upload_ids: set[str] | None = None,
     ) -> list[HybridResult]:
         """Execute hybrid search with RRF fusion and optional reranking."""
         top_k = top_k or settings.retrieval.top_k
         candidate_top_k = self._candidate_top_k(top_k)
 
         # Get results from both retrievers
-        vector_results = self.vector_store.search(query, top_k=candidate_top_k)
-        bm25_results = self.bm25.search(query, top_k=candidate_top_k) if self.bm25.is_indexed else []
+        if allowed_upload_ids is None:
+            vector_results = self.vector_store.search(query, top_k=candidate_top_k)
+        else:
+            vector_results = self.vector_store.search(
+                query, top_k=candidate_top_k, allowed_upload_ids=allowed_upload_ids
+            )
+        if self.bm25.is_indexed:
+            bm25_results = (
+                self.bm25.search(query, top_k=candidate_top_k)
+                if allowed_upload_ids is None
+                else self.bm25.search(
+                    query,
+                    top_k=candidate_top_k,
+                    allowed_upload_ids=allowed_upload_ids,
+                )
+            )
+        else:
+            bm25_results = []
 
         # RRF fusion
         fused: dict[str, HybridResult] = {}
@@ -89,9 +109,19 @@ class HybridRetriever:
         return self._rerank_results(query, sorted_results, top_k)
 
     @traceable(name="vector_search", run_type="retriever")
-    def search_vector_only(self, query: str, top_k: int | None = None) -> list[HybridResult]:
+    def search_vector_only(
+        self,
+        query: str,
+        top_k: int | None = None,
+        allowed_upload_ids: set[str] | None = None,
+    ) -> list[HybridResult]:
         top_k = top_k or settings.retrieval.top_k
-        results = self.vector_store.search(query, top_k=self._candidate_top_k(top_k))
+        if allowed_upload_ids is None:
+            results = self.vector_store.search(query, top_k=self._candidate_top_k(top_k))
+        else:
+            results = self.vector_store.search(
+                query, top_k=self._candidate_top_k(top_k), allowed_upload_ids=allowed_upload_ids
+            )
         hybrid_results = [
             HybridResult(
                 chunk_id=r.chunk_id,
@@ -105,11 +135,20 @@ class HybridRetriever:
         return self._rerank_results(query, hybrid_results, top_k)
 
     @traceable(name="keyword_search", run_type="retriever")
-    def search_keyword_only(self, query: str, top_k: int | None = None) -> list[HybridResult]:
+    def search_keyword_only(
+        self,
+        query: str,
+        top_k: int | None = None,
+        allowed_upload_ids: set[str] | None = None,
+    ) -> list[HybridResult]:
         if not self.bm25.is_indexed:
             return []
         top_k = top_k or settings.retrieval.top_k
-        results = self.bm25.search(query, top_k=self._candidate_top_k(top_k))
+        results = self.bm25.search(
+            query,
+            top_k=self._candidate_top_k(top_k),
+            allowed_upload_ids=allowed_upload_ids,
+        )
         hybrid_results = [
             HybridResult(
                 chunk_id=r.chunk_id,

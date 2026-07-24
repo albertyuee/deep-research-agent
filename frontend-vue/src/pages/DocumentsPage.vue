@@ -7,10 +7,15 @@
           {{ store.files.length > 0 ? `${store.files.length} 个文件 · ${store.totalChunks} chunks · ${formatSize(store.totalSize)}` : '上传文档以扩展知识库' }}
         </p>
       </div>
-      <n-button type="primary" @click="showUpload = true">
-        <template #icon><n-icon><cloud-upload-outline /></n-icon></template>
-        上传文件
-      </n-button>
+      <div class="flex items-center gap-2">
+        <n-input v-model:value="searchQuery" clearable placeholder="搜索文档名称或 ID" style="width: 220px">
+          <template #prefix><n-icon><search-outline /></n-icon></template>
+        </n-input>
+        <n-button v-if="canUpload" type="primary" @click="showUpload = true">
+          <template #icon><n-icon><cloud-upload-outline /></n-icon></template>
+          上传文件
+        </n-button>
+      </div>
     </div>
 
     <n-alert v-if="store.error" type="error" :bordered="false" class="mb-4">
@@ -18,9 +23,9 @@
     </n-alert>
 
     <n-spin :show="store.isLoading">
-      <div v-if="store.files.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div v-if="filteredFiles.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         <DocumentCard
-          v-for="f in store.files"
+          v-for="f in filteredFiles"
           :key="f.id"
           :file="f"
           @preview="onPreview"
@@ -30,11 +35,11 @@
 
       <div v-else class="flex flex-col items-center justify-center py-20 text-center">
         <div class="text-5xl mb-4">📂</div>
-        <h3 class="text-lg font-semibold text-gray-700 mb-2">暂无文档</h3>
+        <h3 class="text-lg font-semibold text-gray-700 mb-2">{{ searchQuery ? '没有匹配的文档' : '暂无文档' }}</h3>
         <p class="text-sm text-gray-400 max-w-sm mb-4">
-          上传 PDF、Word、Markdown 或 TXT 文档，自动分块索引入知识库，立即可被检索。
+          {{ searchQuery ? '请尝试其他文件名或文档 ID。' : '上传 PDF、Word、Markdown 或 TXT 文档，自动分块索引入知识库，立即可被检索。' }}
         </p>
-        <n-button type="primary" @click="showUpload = true">
+        <n-button v-if="canUpload && !searchQuery" type="primary" @click="showUpload = true">
           <template #icon><n-icon><cloud-upload-outline /></n-icon></template>
           上传第一个文档
         </n-button>
@@ -47,16 +52,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { NIcon } from 'naive-ui'
-import { CloudUploadOutline } from '@vicons/ionicons5'
+import { CloudUploadOutline, SearchOutline } from '@vicons/ionicons5'
 import { useDocumentsStore } from '@/stores/documents'
 import type { DocFile } from '@/stores/documents'
 import DocumentCard from '@/components/documents/DocumentCard.vue'
 import UploadDialog from '@/components/documents/UploadDialog.vue'
 import PreviewDialog from '@/components/documents/PreviewDialog.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const store = useDocumentsStore()
+const auth = useAuthStore()
+const canUpload = computed(() => auth.user?.permissions.includes('document:upload') ?? true)
+const searchQuery = ref('')
+const filteredFiles = computed(() => {
+  const keyword = searchQuery.value.trim().toLowerCase()
+  if (!keyword) return store.files
+  return store.files.filter(file => `${file.name} ${file.id}`.toLowerCase().includes(keyword))
+})
 const showUpload = ref(false)
 const showPreview = ref(false)
 const previewFile = ref<DocFile | null>(null)

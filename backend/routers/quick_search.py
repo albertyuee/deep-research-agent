@@ -7,7 +7,7 @@ import time
 import traceback
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
 from backend.services.research_service import task_manager
@@ -15,6 +15,8 @@ from research_agent.llm.factory import create_llm_client
 from research_agent.retrieval.hybrid import HybridRetriever
 from research_agent.retrieval.service import retrieval_service
 from config.settings import settings
+from backend.auth import User, allowed_upload_ids, current_user
+from backend.routers.documents import _read_files_meta
 
 # Use Uvicorn's configured logger so retrieval diagnostics are written to the
 # same backend log as request and timing records in production startup.
@@ -82,7 +84,7 @@ async def _rewrite_search_query(client, query: str, history_messages: list[dict[
 
 
 @router.post("", response_model=QuickSearchResponse)
-async def quick_search(req: QuickSearchRequest):
+async def quick_search(req: QuickSearchRequest, user: User = Depends(current_user)):
     """Execute a fast hybrid search + LLM summarization."""
     query = req.query.strip()
     if not query:
@@ -103,7 +105,9 @@ async def quick_search(req: QuickSearchRequest):
 
     try:
         hybrid = _get_hybrid()
-        results = hybrid.search(search_query, top_k=req.top_k)
+        files = _read_files_meta().get("files", [])
+        access_ids = allowed_upload_ids(user, files)
+        results = hybrid.search(search_query, top_k=req.top_k, allowed_upload_ids=access_ids)
     except Exception as e:
         tb = traceback.format_exc()
         logger.exception(f"检索失败: {e}")

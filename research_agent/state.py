@@ -24,6 +24,7 @@ class ResearchState(TypedDict, total=False):
     enable_web_search: bool
     research_mode: ResearchMode
     reasoning_enabled: bool
+    allowed_upload_ids: set[str] | None
 
     # Decomposition
     sub_queries: list[dict]

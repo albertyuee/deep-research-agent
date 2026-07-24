@@ -3,6 +3,7 @@ import {
   submitResearch,
   fetchResearchTask,
   cancelResearch,
+  researchStreamUrl,
 } from '@/api/research'
 import type { ResearchMode } from '@/api/research'
 
@@ -81,7 +82,7 @@ export function useResearch() {
     closeEventSource()
     connectionErrors = 0
     needsReplayReset = false
-    const source = new EventSource(`/api/v1/research/${taskId}/stream`)
+    const source = new EventSource(researchStreamUrl(taskId))
     eventSource = source
 
     source.onopen = () => {

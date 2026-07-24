@@ -174,6 +174,27 @@ class LangSmithSettings(BaseSettings):
     endpoint: str = "https://api.smith.langchain.com"
 
 
+class AuthSettings(BaseSettings):
+    """First-phase local auth settings.
+
+    Authentication stays opt-in for backwards compatibility with the existing
+    single-user demo.  Set AUTH_ENABLED=true and provide bootstrap credentials
+    to turn on bearer-token authentication.
+    """
+
+    model_config = {
+        "env_prefix": "AUTH_",
+        "env_file": ENV_FILE,
+        "extra": "ignore",
+    }
+
+    enabled: bool = False
+    db_path: str = "data/auth.db"
+    admin_email: str = ""
+    admin_password: str = ""
+    admin_name: str = "系统管理员"
+
+
 class Settings(BaseSettings):
     model_config = {
         "env_file": Path(__file__).parent / ".env",
@@ -189,6 +210,7 @@ class Settings(BaseSettings):
     rerank: RerankSettings = Field(default_factory=RerankSettings)
     mcp: MCPSettings = Field(default_factory=MCPSettings)
     langsmith: LangSmithSettings = Field(default_factory=LangSmithSettings)
+    auth: AuthSettings = Field(default_factory=AuthSettings)
 
     project_root: Path = Field(default_factory=lambda: Path(__file__).parent.parent)
     data_dir: Path = Field(default_factory=lambda: Path(__file__).parent.parent / "data")

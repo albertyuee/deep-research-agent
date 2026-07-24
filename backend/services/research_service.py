@@ -20,6 +20,7 @@ class TaskStatus(str, Enum):
 class ResearchTask:
     task_id: str
     query: str
+    owner_id: str = "system"
     status: TaskStatus = TaskStatus.PENDING
     result: dict | None = None
     error: str | None = None
@@ -32,8 +33,8 @@ class ResearchTaskManager:
         self._tasks: dict[str, ResearchTask] = {}
         self._running_tasks: dict[str, asyncio.Task] = {}
 
-    def create_task(self, task_id: str, query: str) -> ResearchTask:
-        task = ResearchTask(task_id=task_id, query=query)
+    def create_task(self, task_id: str, query: str, owner_id: str = "system") -> ResearchTask:
+        task = ResearchTask(task_id=task_id, query=query, owner_id=owner_id)
         self._tasks[task_id] = task
         return task
 

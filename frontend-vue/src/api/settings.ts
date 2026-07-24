@@ -1,3 +1,5 @@
+import { apiFetch } from './http'
+
 const BASE = '/api/v1'
 
 export interface LLMSettings {
@@ -91,7 +93,7 @@ export interface SystemInfo {
 }
 
 export async function fetchSettings(): Promise<SettingsData> {
-  const resp = await fetch(`${BASE}/settings`)
+  const resp = await apiFetch(`${BASE}/settings`)
   if (!resp.ok) throw new Error(`获取配置失败: ${resp.status}`)
   const body = await resp.json()
   return body.data
@@ -100,7 +102,7 @@ export async function fetchSettings(): Promise<SettingsData> {
 export async function updateSettings(
   patch: Partial<{ llm: Partial<LLMSettings>; embedding: Partial<EmbeddingSettings>; retrieval: Partial<RetrievalSettings>; reasoning: Partial<ReasoningSettings>; rerank: Partial<RerankSettings>; milvus: Partial<MilvusSettings>; mcp: Partial<MCPSettings>; langsmith: Partial<LangSmithSettings> }>
 ): Promise<{ updated: string[]; need_restart: boolean }> {
-  const resp = await fetch(`${BASE}/settings`, {
+  const resp = await apiFetch(`${BASE}/settings`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(patch),
@@ -111,7 +113,7 @@ export async function updateSettings(
 }
 
 export async function fetchSystemInfo(): Promise<SystemInfo> {
-  const resp = await fetch(`${BASE}/settings/system-info`)
+  const resp = await apiFetch(`${BASE}/settings/system-info`)
   if (!resp.ok) throw new Error(`获取系统信息失败: ${resp.status}`)
   const body = await resp.json()
   return body.data
@@ -126,7 +128,7 @@ export async function testConnection(
   service: 'llm' | 'embedding' | 'milvus' | 'langsmith',
   config?: Record<string, unknown>,
 ): Promise<TestConnectionResult> {
-  const resp = await fetch(`${BASE}/settings/test-connection`, {
+  const resp = await apiFetch(`${BASE}/settings/test-connection`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ service, config: config || {} }),

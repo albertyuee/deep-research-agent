@@ -1,3 +1,5 @@
+import { apiFetch } from './http'
+
 const BASE = '/api/v1'
 
 export interface ChatHistoryItem {
@@ -27,7 +29,7 @@ export async function quickSearch(
   topK: number = 5,
   history: ChatHistoryItem[] = [],
 ): Promise<QuickSearchResponse['data']> {
-  const resp = await fetch(`${BASE}/quick-search`, {
+  const resp = await apiFetch(`${BASE}/quick-search`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query, top_k: topK, history }),

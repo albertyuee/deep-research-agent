@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 import re
 
 from config.settings import reload_settings
 from config.settings import settings as app_settings
+from backend.auth import User, require_permission
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -152,7 +153,7 @@ def _write_env(updates: dict[str, str]) -> None:
 
 
 @router.get("")
-async def get_settings():
+async def get_settings(_: User = Depends(require_permission("settings:read"))):
     return {
         "success": True,
         "data": {
@@ -169,7 +170,7 @@ async def get_settings():
 
 
 @router.patch("")
-async def update_settings(body: dict):
+async def update_settings(body: dict, _: User = Depends(require_permission("settings:update"))):
     """Partially update settings. Writes to .env and hot-reloads."""
     env_updates: dict[str, str] = {}
     updated_keys: list[str] = []
@@ -273,7 +274,7 @@ async def update_settings(body: dict):
 
 
 @router.post("/test-connection")
-async def test_connection(body: dict):
+async def test_connection(body: dict, _: User = Depends(require_permission("settings:update"))):
     """Test connection for LLM, Embedding, or Milvus with current or provided config."""
     service = body.get("service", "")
     config = body.get("config", {})
@@ -387,7 +388,7 @@ async def _test_milvus(config: dict):
 
 
 @router.get("/system-info")
-async def get_system_info():
+async def get_system_info(_: User = Depends(require_permission("settings:read"))):
     from research_agent.retrieval.vector_store import create_vector_store
 
     backend = app_settings.retrieval.vector_backend

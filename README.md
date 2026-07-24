@@ -23,7 +23,9 @@
   <a href="#配置说明">配置说明</a> ·
   <a href="#开放许可测试语料">测试语料</a> ·
   <a href="#api-概览">API 概览</a> ·
-  <a href="#测试与验证">测试与验证</a>
+  <a href="#测试与验证">测试与验证</a> ·
+  <a href="docs/development.md">开发指南</a> ·
+  <a href="docs/troubleshooting.md">故障排查</a>
 </p>
 
 </div>
@@ -50,6 +52,18 @@
 
 ---
 
+## 文档导航
+
+| 文档 | 适用场景 |
+|---|---|
+| [快速开始](#快速开始) | 第一次安装、配置并运行项目 |
+| [开发指南](docs/development.md) | 理解模块职责、扩展 API/检索/SSE、运行测试 |
+| [权限管理](docs/permissions.md) | 配置登录、角色、部门和文档访问范围 |
+| [API 文档](docs/api.md) | 查看请求字段、鉴权、SSE 和调用示例 |
+| [故障排查](docs/troubleshooting.md) | 处理端口、依赖、代理、Embedding、429 和检索问题 |
+
+---
+
 ## 核心能力
 
 | 能力 | 说明 |
@@ -65,6 +79,12 @@
 | 多跳推理 | 基于 `depends_on`、实体、事实和 working memory 驱动后续检索 |
 | 流式可视化 | FastAPI SSE 实时推送 Agent 执行过程到 Vue 前端 |
 | 文档管理 | 支持 PDF、DOCX、Markdown、TXT 上传、切块、嵌入和索引 |
+| 登录与 RBAC（第一期） | 本地 SQLite 用户、`admin/researcher/guest` 角色和 Bearer Token |
+| 部门级文档权限 | 支持仅自己、单/多部门、工作区、角色、用户和公开七种访问范围 |
+| 管理后台 | 用户、部门、角色、文档权限管理，支持按文件名或 ID 搜索 |
+| 上传状态反馈 | 上传成功后显示文件名、分块数和索引状态，失败时回滚本次写入 |
+| 任务权限 | 研究任务归属和 SSE 订阅均由后端校验，管理员可查看全部任务 |
+| 研究状态生命周期 | 报告仅保留在当前页面内存中，刷新页面或切换账号后自动清空，不写入浏览器存储 |
 | 上传安全 | 单文件默认最大 `20 MB`，上传文件名会做安全清理 |
 | 可追溯来源 | 报告使用稳定来源 ID，Chroma 与 Milvus 均保留文件元数据 |
 | 研究型前端 | 响应式布局、研究路径状态、报告目录、复制和 Markdown 导出 |
@@ -73,24 +93,81 @@
 
 ## 系统架构
 
+整体采用“Vue 前端 + FastAPI API + LangGraph Agent + 可替换检索后端”的分层结构。浏览器通过 REST 提交任务和读取结果，通过 SSE 接收实时进度；权限过滤在后端进入检索层之前完成，避免只依赖前端隐藏内容。
+
 ```mermaid
-flowchart TD
-    A[用户问题] --> M{研究模式<br/>auto / parallel / multihop}
-    M --> B[Decomposition Node<br/>问题拆解与依赖计划]
-    B --> C[Retrieval Node<br/>策略选择与多路召回]
-    C --> D[Hybrid Retrieval<br/>Vector + BM25 + RRF]
-    D --> E{Rerank enabled?}
-    E -- yes --> F[SiliconFlow Rerank<br/>Qwen/Qwen3-Reranker-8B]
-    E -- no --> G[Top-K Results]
-    F --> G
-    G --> H[Critique Node<br/>相关性/完整性评分]
-    H --> I{质量通过?}
-    I -- 否，仍可重试 --> C
-    I -- 通过且存在后续依赖 --> L[Working Memory<br/>摘要 / 实体 / 事实]
-    L --> C
-    I -- 全部完成 --> J[Synthesis Node<br/>报告生成与引用标注]
-    J --> K[Vue 前端<br/>SSE 实时展示]
+flowchart LR
+    U[用户浏览器] --> F[Vue 3 前端<br/>研究 / 快速检索 / 资料 / 管理后台]
+
+    subgraph APP[应用服务层]
+        API[FastAPI REST API]
+        SSE[SSE 事件流]
+        AUTH[认证与 RBAC<br/>角色 / 部门 / 文档 ACL]
+        TASK[研究任务服务<br/>状态 / 取消 / 归属]
+    end
+
+    F -->|REST 请求| API
+    F -->|实时进度| SSE
+    API --> AUTH
+    API --> TASK
+    SSE --> TASK
+
+    subgraph AGENT[LangGraph Agent 层]
+        PLAN[Planner<br/>最多 3 个子问题]
+        SCHED[依赖层调度<br/>并发上限 2]
+        RETRIEVE[Hybrid Retrieval<br/>Vector + BM25 + RRF]
+        CRITIQUE[质量评估<br/>相关性 / 完整性]
+        MEMORY[Working Memory<br/>实体 / 事实 / 摘要]
+        SYNTH[Synthesis<br/>引用报告]
+        PLAN --> SCHED --> RETRIEVE --> CRITIQUE
+        CRITIQUE -->|低质量：查询改写重试| RETRIEVE
+        CRITIQUE -->|存在后续依赖| MEMORY --> RETRIEVE
+        CRITIQUE -->|全部步骤完成| SYNTH
+    end
+
+    TASK --> PLAN
+    AUTH -->|allowed_upload_ids| RETRIEVE
+    SYNTH --> TASK
+
+    subgraph RETRIEVAL[检索与模型基础设施]
+        VECTOR[(Chroma / Milvus<br/>向量库)]
+        BM25[(BM25 + jieba<br/>关键词索引)]
+        RERANK[Rerank<br/>可选]
+        EMB[Embedding<br/>本地或 API]
+        LLM[LLM Provider<br/>SiliconFlow / Qwen / OpenAI]
+        WEB[MCP Web Search<br/>Tavily，可选]
+    end
+
+    RETRIEVE --> VECTOR
+    RETRIEVE --> BM25
+    RETRIEVE --> RERANK
+    RETRIEVE --> EMB
+    PLAN --> LLM
+    CRITIQUE --> LLM
+    SYNTH --> LLM
+    RETRIEVE -->|本地检索与联网搜索并发| WEB
+
+    subgraph DATA[持久化与观测]
+        DOCS[(上传文档与 files.json)]
+        AUTHDB[(SQLite auth.db<br/>第一期权限数据)]
+        TIMING[阶段计时 / LangSmith<br/>可选追踪]
+    end
+
+    API --> DOCS
+    AUTH --> AUTHDB
+    AGENT --> TIMING
 ```
+
+### 面试讲解要点
+
+| 架构层 | 主要职责 | 关键取舍 |
+|---|---|---|
+| 前端与 API | 页面交互、任务提交、SSE 进度和管理操作 | REST 负责请求结果，SSE 负责长任务实时反馈 |
+| Agent 编排 | 拆解、依赖层并发、多跳上下文、评估、重试和合成 | 使用 LangGraph 显式表达状态和条件路由，便于观测与测试 |
+| 检索层 | 向量召回、BM25 精确匹配、RRF 融合和可选 Rerank | 共享检索生命周期，避免每次请求重建索引；权限 ID 在召回阶段过滤 |
+| 数据与模型 | 文档、权限、向量库、LLM、Embedding 和 Web Search | Chroma/Milvus、LLM Provider 和 Embedding 可替换 |
+
+这套分层让“快速检索”和“深度研究”复用同一套权限过滤与混合检索能力，同时保持执行复杂度不同：快速检索直接召回并总结，深度研究才启用 Planner、Critique、重试和多跳 working memory。
 
 ### Agent 状态流转
 
@@ -129,8 +206,12 @@ Decomposition -> Retrieval -> Critique -> should_retry?
 |---|---|---|
 | 深度研究 | `/` | 提交复杂问题，查看 Agent 拆解、检索、评估、合成全过程 |
 | 快速检索 | `/quick-search` | 快速 RAG 问答，返回摘要和引用来源 |
-| 资料管理 | `/documents` | 上传、查看、删除知识库文档 |
+| 资料管理 | `/documents` | 上传、搜索、查看、删除知识库文档 |
 | 系统设置 | `/settings` | 配置 LLM、Embedding、向量库、Rerank、Web Search |
+| 管理后台 | `/admin` | 管理用户、部门和角色权限（仅管理员） |
+| 登录页面 | `/login` | 权限开启后的统一登录入口 |
+
+管理员登录后可在“管理后台 → 文档权限”搜索文档并逐份设置：仅自己、指定部门、多个部门、工作区、指定角色、指定用户或公开。资料管理页也支持按文件名或文档 ID即时搜索。保存后会同时影响资料列表、快速检索和深度研究的本地检索范围。
 
 ### 深度研究模式
 
@@ -193,13 +274,53 @@ EMBEDDING_API_BASE_URL=https://api.siliconflow.cn/v1
 EMBEDDING_API_KEY=sk-your-siliconflow-api-key-here
 ```
 
-### 4. 启动项目
+### 4. 第一期开启权限管理（可选）
+
+权限默认关闭，以兼容单机演示。开启后，后端会使用 `data/auth.db` 保存用户、角色、部门和会话；文档访问范围写入 `data/uploads/files.json` 并同步到向量块元数据：
+
+```env
+AUTH_ENABLED=true
+AUTH_DB_PATH=data/auth.db
+AUTH_ADMIN_EMAIL=admin@example.com
+AUTH_ADMIN_PASSWORD=请设置至少8位密码
+AUTH_ADMIN_NAME=系统管理员
+```
+
+重启后访问前端会先进入登录页。管理员可以通过 API 文档创建用户和部门：
+
+```text
+POST /api/v1/auth/users
+POST /api/v1/auth/departments
+GET  /api/v1/auth/users
+GET  /api/v1/auth/departments
+```
+
+上传文档时可以选择仅自己、本部门、多个指定部门、当前工作区、指定角色、指定用户或公开。上传、列表、删除、快速检索、深度研究和 SSE 任务都会在后端校验权限；向量检索和 BM25 也会按允许访问的文档过滤。
+
+推荐的首次配置流程：
+
+```text
+管理员登录
+  -> 创建部门
+  -> 创建用户并分配角色、部门
+  -> 上传文档并选择访问范围
+  -> 在管理后台搜索文档并复核权限
+  -> 使用不同角色验证资料列表、快速检索和深度研究
+```
+
+详细角色矩阵、七种访问范围和历史文档迁移注意事项见 [权限管理文档](docs/permissions.md)。
+
+SQLite 适合单机或测试环境。部署多副本、多人并发或需要集中管理时，应将同一套表迁移到 Supabase PostgreSQL，并继续使用 Supabase Auth/JWT。
+
+### 5. 启动项目
 
 一键启动：
 
 ```bash
 ./start.sh
 ```
+
+当 `AUTH_ENABLED=true` 时，启动脚本会自动打开 `/login`；如果 8000 或 5173 已被旧进程占用，脚本会根据新进程 PID 判断启动失败，不会误把旧服务当成新版本。
 
 手动启动：
 
@@ -215,7 +336,11 @@ cd frontend-vue && npm run dev
 
 | 服务 | 地址 |
 |---|---|
-| 前端 | `http://localhost:5173` |
+| 深度研究 | `http://localhost:5173/` |
+| 快速检索 | `http://localhost:5173/quick-search` |
+| 资料管理 | `http://localhost:5173/documents` |
+| 登录页面 | `http://localhost:5173/login` |
+| 管理后台 | `http://localhost:5173/admin` |
 | 后端健康检查 | `http://localhost:8000/health` |
 | Swagger API 文档 | `http://localhost:8000/docs` |
 
@@ -407,6 +532,8 @@ GraphRAG、LangGraph、Haystack 和 LlamaIndex 在一套深度研究系统中可
 
 ## API 概览
 
+本文保留常用接口速查；请求字段、响应结构、错误码、文档 ACL 和 SSE 示例见完整的 [API 文档](docs/api.md)。
+
 ### Research API
 
 | 方法 | 路径 | 说明 |
@@ -432,6 +559,16 @@ curl -X POST http://localhost:8000/api/v1/research \
 `research_mode` 支持 `auto`（自动规划并列或依赖步骤）、`parallel`（所有步骤独立执行）和
 `multihop`（强制建立依赖链并传递工作记忆）。`max_hops` 的取值范围为 `1`～`8`，省略时使用系统配置。
 
+### Auth API
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| `POST` | `/api/v1/auth/login` | 登录并获取 Bearer Token |
+| `GET` | `/api/v1/auth/me` | 获取当前用户和权限 |
+| `GET/POST` | `/api/v1/auth/users` | 查看或创建用户（管理员） |
+| `PATCH/DELETE` | `/api/v1/auth/users/{user_id}` | 修改或删除用户（管理员） |
+| `GET/POST` | `/api/v1/auth/departments` | 查看或创建部门（管理员创建） |
+
 ### Quick Search API
 
 | 方法 | 路径 | 说明 |
@@ -449,8 +586,12 @@ curl -X POST http://localhost:8000/api/v1/quick-search \
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | `GET` | `/api/v1/documents` | 文件列表，包含已索引文档 |
-| `POST` | `/api/v1/documents/upload` | 上传文档，默认最大 20MB |
+| `POST` | `/api/v1/documents/upload` | 上传文档，默认最大 20MB，可设置访问范围 |
+| `PATCH` | `/api/v1/documents/{file_id}/access` | 管理员修改文档可见范围、角色或用户 ACL |
 | `DELETE` | `/api/v1/documents/{file_id}` | 删除文档及关联 chunks |
+
+启用权限后先登录获取 Bearer Token，再在请求中携带 `Authorization: Bearer <token>`。浏览器的研究 SSE
+连接使用短期 `access_token` 查询参数，是为了兼容原生 `EventSource`；生产环境建议改为支持自定义请求头的 SSE 客户端。
 
 ### Settings API
 
@@ -469,6 +610,7 @@ curl -X POST http://localhost:8000/api/v1/quick-search \
 deep-research-agent/
 ├── backend/                         # FastAPI 后端
 │   ├── main.py                      # 应用入口、CORS、生命周期
+│   ├── auth.py                      # 登录、RBAC 和文档 ACL
 │   ├── routers/                     # API 路由
 │   └── services/                    # 任务管理服务
 ├── config/                          # pydantic-settings 配置
@@ -502,6 +644,7 @@ deep-research-agent/
 │   └── streaming.py                 # SSE 事件总线
 ├── scripts/                         # 文档索引、开放语料下载等辅助脚本
 ├── tests/                           # 单元与集成测试
+├── docs/                            # 开发、权限、API 和故障排查文档
 ├── pyproject.toml
 └── README.md
 ```
@@ -536,6 +679,25 @@ npm run build
 
 评测输出包括 `Hit@1`、`Hit@K`、MRR、来源召回率和平均检索耗时。默认要求 `Hit@5` 与来源召回率均不低于 `75%`，未达到阈值时命令返回非零退出码，可直接接入 CI。
 
+### 中文多跳推理测试集
+
+项目可以下载 RGB 基准的中文信息整合子集 `zh_int`，固定抽样后将每道题的两份必要证据和干扰资料写入当前配置的 Chroma 或 Milvus，再检查是否同时召回两份证据：
+
+```bash
+# 如需代理，先设置 http_proxy / https_proxy
+.venv/bin/python scripts/prepare_rgb_zh_multihop.py
+
+# 调整题目数、干扰资料数和召回范围
+.venv/bin/python scripts/prepare_rgb_zh_multihop.py \
+  --sample-size 12 \
+  --distractors 6 \
+  --top-k 10
+```
+
+默认生成 `8` 道中文多跳问题，每题包含 `2` 份必要证据和 `4` 份干扰资料。知识库语料不会写入问题和标准答案，避免答案泄漏；完整评测报告保存在 `data/rgb_zh_multihop/evaluation_report.json`。
+
+RGB 数据和代码采用 `CC BY-NC-SA 4.0`，这里只用于非商业测试。下载目录 `data/rgb_zh_multihop/` 已加入 `.gitignore`，不会提交到项目仓库。
+
 真实接口连通性已验证：
 
 | 接口 | 结果 |
@@ -562,6 +724,24 @@ Embedding 查询限制为默认 `500` 字符；如果仍然报错，请在系统
 
 下载器调用系统 `curl`，会继承 `http_proxy`、`https_proxy` 和 `all_proxy`。确认代理可用后重新运行脚本即可，
 同名文件会被覆盖，不会产生重复的本地文件。已导入知识库的资料不要再次通过上传接口重复导入。
+
+更多端口占用、登录页、Pydantic/Chroma、SOCKS 代理、Milvus、文档列表和 SSE 问题见 [故障排查](docs/troubleshooting.md)。
+
+---
+
+## 生产部署注意事项
+
+当前默认方案首先面向本地开发和单机演示。准备部署到公网或多实例环境前，请至少完成：
+
+- 开启 `AUTH_ENABLED=true`，设置强管理员密码并使用 HTTPS；
+- 严格限制 FastAPI CORS 和反向代理允许的来源；
+- 使用部署平台环境变量或 Secret Manager，不提交 `config/.env`；
+- 不提交或公开 `data/auth.db`、`data/uploads/`、本地向量库和日志；
+- 为登录、上传和高成本研究接口增加速率限制及审计日志；
+- 定期备份文档元数据、权限数据和向量库；
+- 多实例部署时，将 SQLite、内存任务状态和 SSE 事件总线迁移到 PostgreSQL、Redis/任务队列等共享基础设施。
+
+SQLite 能满足当前第一期权限需求，但不适合作为多副本服务的共享数据库。迁移 Supabase PostgreSQL 的建议顺序见 [权限管理文档](docs/permissions.md#8-sqlite-与-supabasepostgresql)。
 
 ---
 

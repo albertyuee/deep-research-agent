@@ -32,6 +32,12 @@ data/chroma_db/
 # User uploaded files
 data/uploads/
 
+# Local permission database (use Supabase/PostgreSQL in multi-instance deployments)
+data/auth.db
+
+# Downloaded RGB Chinese multi-hop benchmark (CC BY-NC-SA 4.0)
+data/rgb_zh_multihop/
+
 # Local-only test code
 本地代码测试/
 

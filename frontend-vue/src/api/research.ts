@@ -1,3 +1,5 @@
+import { apiFetch, getAuthToken } from './http'
+
 const BASE = '/api/v1'
 
 export type ResearchMode = 'auto' | 'parallel' | 'multihop'
@@ -34,7 +36,7 @@ export async function submitResearch(
   researchMode: ResearchMode = 'auto',
   maxHops: number = 3,
 ): Promise<string> {
-  const resp = await fetch(`${BASE}/research`, {
+  const resp = await apiFetch(`${BASE}/research`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -55,7 +57,7 @@ export async function submitResearch(
 }
 
 export async function fetchResearchTask(taskId: string): Promise<ResearchTaskData> {
-  const resp = await fetch(`${BASE}/research/${taskId}`)
+  const resp = await apiFetch(`${BASE}/research/${taskId}`)
   if (!resp.ok) {
     throw new Error(`获取研究任务失败: ${resp.status} ${resp.statusText}`)
   }
@@ -72,5 +74,12 @@ export async function fetchResult(taskId: string): Promise<ResearchResult | null
 }
 
 export async function cancelResearch(taskId: string): Promise<void> {
-  await fetch(`${BASE}/research/${taskId}/cancel`, { method: 'POST' })
+  await apiFetch(`${BASE}/research/${taskId}/cancel`, { method: 'POST' })
+}
+
+export function researchStreamUrl(taskId: string): string {
+  const token = getAuthToken()
+  return token
+    ? `${BASE}/research/${taskId}/stream?access_token=${encodeURIComponent(token)}`
+    : `${BASE}/research/${taskId}/stream`
 }

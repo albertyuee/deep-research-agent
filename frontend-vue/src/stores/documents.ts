@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { fetchDocuments, uploadDocument, deleteDocument } from '@/api/documents'
+import type { DocUploadResponse } from '@/api/documents'
 import type { DocFile } from '@/api/documents'
 
 export type { DocFile }
@@ -24,11 +25,12 @@ export const useDocumentsStore = defineStore('documents', () => {
     }
   }
 
-  async function upload(file: File): Promise<void> {
+  async function upload(file: File, access: { visibility?: string; departmentIds?: string[]; allowedRoles?: string[]; allowedUsers?: string[] } = {}): Promise<DocUploadResponse['data']> {
     error.value = null
     try {
-      await uploadDocument(file)
+      const result = await uploadDocument(file, access)
       await loadFiles()
+      return result
     } catch (e) {
       error.value = e instanceof Error ? e.message : '上传失败'
       throw e

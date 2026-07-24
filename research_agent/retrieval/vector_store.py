@@ -54,7 +54,12 @@ class VectorStore:
             metadatas=meta_list,
         )
 
-    def search(self, query: str, top_k: int | None = None) -> list[RetrievalResult]:
+    def search(
+        self,
+        query: str,
+        top_k: int | None = None,
+        allowed_upload_ids: set[str] | None = None,
+    ) -> list[RetrievalResult]:
         """Semantic vector search."""
         from research_agent.retrieval.embedding import get_embedding_service
 
@@ -62,11 +67,14 @@ class VectorStore:
         emb_service = get_embedding_service()
         query_emb = emb_service.embed_query(query).tolist()
 
-        results = self.collection.query(
-            query_embeddings=[query_emb],
-            n_results=top_k,
-            include=["documents", "metadatas", "distances"],
-        )
+        query_kwargs = {
+            "query_embeddings": [query_emb],
+            "n_results": top_k,
+            "include": ["documents", "metadatas", "distances"],
+        }
+        if allowed_upload_ids is not None:
+            query_kwargs["where"] = {"upload_id": {"$in": sorted(allowed_upload_ids)}} if allowed_upload_ids else {"upload_id": "__no_access__"}
+        results = self.collection.query(**query_kwargs)
 
         output = []
         if results["ids"] and results["ids"][0]:
@@ -201,7 +209,12 @@ class MilvusVectorStore:
         client = self._get_client()
         client.insert(collection_name=self._collection_name, data=data)
 
-    def search(self, query: str, top_k: int | None = None) -> list[RetrievalResult]:
+    def search(
+        self,
+        query: str,
+        top_k: int | None = None,
+        allowed_upload_ids: set[str] | None = None,
+    ) -> list[RetrievalResult]:
         """Semantic vector search via Milvus."""
         from research_agent.retrieval.embedding import get_embedding_service
 
@@ -210,12 +223,16 @@ class MilvusVectorStore:
         query_emb = emb_service.embed_query(query).tolist()
 
         client = self._get_client()
-        results = client.search(
-            collection_name=self._collection_name,
-            data=[query_emb],
-            limit=top_k,
-            output_fields=["chunk_id", "text", "*"],
-        )
+        search_kwargs = {
+            "collection_name": self._collection_name,
+            "data": [query_emb],
+            "limit": top_k,
+            "output_fields": ["chunk_id", "text", "*"],
+        }
+        if allowed_upload_ids is not None:
+            literals = ", ".join(self._string_literal(value) for value in sorted(allowed_upload_ids))
+            search_kwargs["filter"] = f"upload_id in [{literals}]" if literals else 'upload_id == "__no_access__"'
+        results = client.search(**search_kwargs)
 
         # Milvus search responses do not consistently expand dynamic fields
         # when ``*`` is mixed with explicit output fields. Fetch the matched

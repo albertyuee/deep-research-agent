@@ -15,12 +15,15 @@ from backend.routers.research import router as research_router
 from backend.routers.quick_search import router as quick_search_router
 from backend.routers.documents import router as documents_router
 from backend.routers.settings import router as settings_router
+from backend.routers.auth import router as auth_router
+from backend.auth import init_auth_db
 from research_agent.tools.mcp_client import mcp_client
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup: connect MCP client. Shutdown: disconnect."""
+    init_auth_db()
     await mcp_client.connect()
     yield
     await mcp_client.disconnect()
@@ -45,6 +48,7 @@ app.include_router(research_router, prefix="/api/v1")
 app.include_router(quick_search_router, prefix="/api/v1")
 app.include_router(documents_router, prefix="/api/v1")
 app.include_router(settings_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
 
 
 @app.get("/health")

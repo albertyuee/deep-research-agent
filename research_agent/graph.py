@@ -333,7 +333,12 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
                 results = await _timed_call(
                     task_id,
                     "local_retrieval",
-                    lambda: asyncio.to_thread(hybrid.search_vector_only, query, top_k=top_k),
+                    lambda: asyncio.to_thread(
+                        hybrid.search_vector_only,
+                        query,
+                        top_k=top_k,
+                        allowed_upload_ids=state.get("allowed_upload_ids"),
+                    ),
                     step=step_idx + 1,
                     attempt=retry_count,
                 )
@@ -341,7 +346,12 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
                 results = await _timed_call(
                     task_id,
                     "local_retrieval",
-                    lambda: asyncio.to_thread(hybrid.search_keyword_only, query, top_k=top_k),
+                    lambda: asyncio.to_thread(
+                        hybrid.search_keyword_only,
+                        query,
+                        top_k=top_k,
+                        allowed_upload_ids=state.get("allowed_upload_ids"),
+                    ),
                     step=step_idx + 1,
                     attempt=retry_count,
                 )
@@ -349,7 +359,12 @@ async def retrieval_node(state: ResearchState) -> ResearchState:
                 results = await _timed_call(
                     task_id,
                     "local_retrieval",
-                    lambda: asyncio.to_thread(hybrid.search, query, top_k=top_k),
+                    lambda: asyncio.to_thread(
+                        hybrid.search,
+                        query,
+                        top_k=top_k,
+                        allowed_upload_ids=state.get("allowed_upload_ids"),
+                    ),
                     step=step_idx + 1,
                     attempt=retry_count,
                 )

@@ -1,3 +1,5 @@
+import { apiFetch } from './http'
+
 const BASE = '/api/v1'
 
 export interface DocFile {
@@ -7,6 +9,12 @@ export interface DocFile {
   chunks: number
   status: 'ready' | 'processing' | 'error'
   uploaded_at: string
+  visibility?: 'private' | 'department' | 'departments' | 'workspace' | 'roles' | 'users' | 'public'
+  department_id?: string | null
+  allowed_departments?: string[]
+  owner_id?: string | null
+  allowed_roles?: string[]
+  allowed_users?: string[]
 }
 
 export interface DocListResponse {
@@ -22,17 +30,24 @@ export interface DocUploadResponse {
 }
 
 export async function fetchDocuments(): Promise<DocFile[]> {
-  const resp = await fetch(`${BASE}/documents`)
+  const resp = await apiFetch(`${BASE}/documents`)
   if (!resp.ok) throw new Error(`获取文件列表失败: ${resp.status}`)
   const body: DocListResponse = await resp.json()
   if (!body.success) throw new Error(body.error || '获取失败')
   return body.data.files
 }
 
-export async function uploadDocument(file: File): Promise<DocUploadResponse['data']> {
+export async function uploadDocument(
+  file: File,
+  access: { visibility?: string; departmentIds?: string[]; allowedRoles?: string[]; allowedUsers?: string[] } = {},
+): Promise<DocUploadResponse['data']> {
   const form = new FormData()
   form.append('file', file)
-  const resp = await fetch(`${BASE}/documents/upload`, {
+  form.append('visibility', access.visibility || 'private')
+  form.append('department_ids', (access.departmentIds || []).join(','))
+  form.append('allowed_roles', (access.allowedRoles || []).join(','))
+  form.append('allowed_users', (access.allowedUsers || []).join(','))
+  const resp = await apiFetch(`${BASE}/documents/upload`, {
     method: 'POST',
     body: form,
   })
@@ -52,6 +67,24 @@ export async function uploadDocument(file: File): Promise<DocUploadResponse['dat
 }
 
 export async function deleteDocument(fileId: string): Promise<void> {
-  const resp = await fetch(`${BASE}/documents/${fileId}`, { method: 'DELETE' })
+  const resp = await apiFetch(`${BASE}/documents/${fileId}`, { method: 'DELETE' })
   if (!resp.ok) throw new Error(`删除失败: ${resp.status}`)
+}
+
+export async function updateDocumentAccess(
+  fileId: string,
+  access: { visibility: string; departmentId?: string | null; allowedDepartmentIds?: string[]; allowedRoles?: string[]; allowedUsers?: string[] },
+): Promise<void> {
+  const resp = await apiFetch(`${BASE}/documents/${fileId}/access`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      visibility: access.visibility,
+      department_id: access.departmentId || null,
+      allowed_departments: access.allowedDepartmentIds || [],
+      allowed_roles: access.allowedRoles || [],
+      allowed_users: access.allowedUsers || [],
+    }),
+  })
+  if (!resp.ok) throw new Error(`更新文档权限失败: ${resp.status}`)
 }

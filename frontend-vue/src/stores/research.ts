@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import type { ResearchMode } from '@/api/research'
 
 export type PhaseState = 'waiting' | 'running' | 'complete' | 'error'
@@ -83,7 +83,6 @@ export interface BackendTimingItem {
 }
 
 export const useResearchStore = defineStore('research', () => {
-  const STORAGE_KEY = 'deep-research:research-state:v1'
   const query = ref('')
   const taskId = ref<string | null>(null)
   const isRunning = ref(false)
@@ -124,92 +123,12 @@ export const useResearchStore = defineStore('research', () => {
   const activeRetrievalSteps = ref<number[]>([])
   const activeCritiqueSteps = ref<number[]>([])
 
-  function snapshot() {
-    return {
-      query: query.value,
-      taskId: taskId.value,
-      isRunning: isRunning.value,
-      isCancelled: isCancelled.value,
-      error: error.value,
-      researchMode: researchMode.value,
-      maxHops: maxHops.value,
-      report: report.value,
-      streamingReport: streamingReport.value,
-      sources: sources.value,
-      phaseStates: phaseStates.value,
-      progressValue: progressValue.value,
-      currentDetail: currentDetail.value,
-      researchPlan: researchPlan.value,
-      critiqueResults: critiqueResults.value,
-      retrievalProgress: retrievalProgress.value,
-      eventLog: eventLog.value,
-      retryHistory: retryHistory.value,
-      startedAt: startedAt.value,
-      finishedAt: finishedAt.value,
-      phaseDurations: phaseDurations.value,
-      phaseStartTimes: phaseStartTimes.value,
-      previousStep: previousStep.value,
-      webSearchResults: webSearchResults.value,
-      reasoningContexts: reasoningContexts.value,
-      backendTimings: backendTimings.value,
-      activeRetrievalSteps: activeRetrievalSteps.value,
-      activeCritiqueSteps: activeCritiqueSteps.value,
-    }
-  }
-
-  function persist() {
-    if (typeof window === 'undefined') return
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot()))
-    } catch {
-      // Persistence is best-effort (for example, private browsing quotas).
-    }
-  }
-
-  function restore() {
-    if (typeof window === 'undefined') return
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY)
-      if (!raw) return
-      const saved = JSON.parse(raw) as Partial<ReturnType<typeof snapshot>>
-      if (typeof saved.query === 'string') query.value = saved.query
-      if (typeof saved.taskId === 'string' || saved.taskId === null) taskId.value = saved.taskId
-      if (typeof saved.isRunning === 'boolean') isRunning.value = saved.isRunning
-      if (typeof saved.isCancelled === 'boolean') isCancelled.value = saved.isCancelled
-      if (typeof saved.error === 'string' || saved.error === null) error.value = saved.error
-      if (saved.researchMode) researchMode.value = saved.researchMode
-      if (typeof saved.maxHops === 'number') maxHops.value = saved.maxHops
-      if (typeof saved.report === 'string') report.value = saved.report
-      if (typeof saved.streamingReport === 'string') streamingReport.value = saved.streamingReport
-      if (Array.isArray(saved.sources)) sources.value = saved.sources
-      if (saved.phaseStates) phaseStates.value = saved.phaseStates
-      if (typeof saved.progressValue === 'number') progressValue.value = saved.progressValue
-      if (typeof saved.currentDetail === 'string') currentDetail.value = saved.currentDetail
-      if (Array.isArray(saved.researchPlan)) researchPlan.value = saved.researchPlan
-      if (Array.isArray(saved.critiqueResults)) critiqueResults.value = saved.critiqueResults
-      if (saved.retrievalProgress !== undefined) retrievalProgress.value = saved.retrievalProgress
-      if (Array.isArray(saved.eventLog)) eventLog.value = saved.eventLog
-      if (Array.isArray(saved.retryHistory)) retryHistory.value = saved.retryHistory
-      if (typeof saved.startedAt === 'number' || saved.startedAt === null) startedAt.value = saved.startedAt
-      if (typeof saved.finishedAt === 'number' || saved.finishedAt === null) finishedAt.value = saved.finishedAt
-      if (saved.phaseDurations) phaseDurations.value = saved.phaseDurations
-      if (saved.phaseStartTimes) phaseStartTimes.value = saved.phaseStartTimes
-      if (typeof saved.previousStep === 'string') previousStep.value = saved.previousStep
-      if (Array.isArray(saved.webSearchResults)) webSearchResults.value = saved.webSearchResults
-      if (Array.isArray(saved.reasoningContexts)) reasoningContexts.value = saved.reasoningContexts
-      if (Array.isArray(saved.backendTimings)) backendTimings.value = saved.backendTimings
-      if (Array.isArray(saved.activeRetrievalSteps)) activeRetrievalSteps.value = saved.activeRetrievalSteps
-      if (Array.isArray(saved.activeCritiqueSteps)) activeCritiqueSteps.value = saved.activeCritiqueSteps
-      // Older snapshots predate finishedAt. Freeze their completed timer at
-      // the best duration available instead of letting "总用时" keep growing.
-      if (!isRunning.value && startedAt.value && !finishedAt.value) {
-        const measuredSeconds = Object.values(phaseDurations.value).reduce((sum, value) => sum + value, 0)
-        finishedAt.value = startedAt.value + measuredSeconds * 1000
-      }
-    } catch {
-      window.localStorage.removeItem(STORAGE_KEY)
-    }
-  }
+  // Research results are intentionally memory-only. A completed report may
+  // contain sensitive documents and should disappear on a full page refresh
+  // or when the current account logs out. Keep this no-op method temporarily
+  // so existing event handlers remain easy to follow without writing browser
+  // storage on every SSE event.
+  function persist() {}
 
   const currentStep = computed(() => {
     if (isCancelled.value) return 'cancelled'
@@ -260,9 +179,6 @@ export const useResearchStore = defineStore('research', () => {
     backendTimings.value = []
     activeRetrievalSteps.value = []
     activeCritiqueSteps.value = []
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(STORAGE_KEY)
-    }
   }
 
   const strategyLabels: Record<string, string> = {
@@ -717,8 +633,6 @@ export const useResearchStore = defineStore('research', () => {
     persist()
   }
 
-  restore()
-  watch(snapshot, persist, { deep: true })
 
   return {
     query, taskId, isRunning, isCancelled, error, researchMode, maxHops,

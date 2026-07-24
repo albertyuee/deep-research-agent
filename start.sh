@@ -208,11 +208,11 @@ echo "   后端 PID: $BACKEND_PID"
 # sleep 过早判定失败。
 BACKEND_READY=false
 for _ in $(seq 1 30); do
-    if curl -s http://localhost:8000/health > /dev/null 2>&1; then
-        BACKEND_READY=true
+    if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
         break
     fi
-    if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+    if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+        BACKEND_READY=true
         break
     fi
     sleep 1
@@ -236,7 +236,7 @@ if [ ! -d "node_modules" ]; then
     echo "   ✓ 依赖安装完成"
 fi
 
-npm run dev -- --host 127.0.0.1 > "$LOG_DIR/frontend.log" 2>&1 &
+npm run dev -- --host 127.0.0.1 --port 5173 --strictPort > "$LOG_DIR/frontend.log" 2>&1 &
 FRONTEND_PID=$!
 cd "$SCRIPT_DIR"
 echo "   前端 PID: $FRONTEND_PID"
@@ -244,11 +244,11 @@ echo "   前端 PID: $FRONTEND_PID"
 # 等待前端启动并打开浏览器
 FRONTEND_READY=false
 for _ in $(seq 1 30); do
-    if curl -s http://localhost:5173/ > /dev/null 2>&1; then
-        FRONTEND_READY=true
+    if ! kill -0 "$FRONTEND_PID" 2>/dev/null; then
         break
     fi
-    if ! kill -0 "$FRONTEND_PID" 2>/dev/null; then
+    if curl -s http://localhost:5173/ > /dev/null 2>&1; then
+        FRONTEND_READY=true
         break
     fi
     sleep 1
@@ -259,12 +259,17 @@ if [ "$FRONTEND_READY" = "true" ]; then
     echo ""
     echo "✅ 所有服务已启动！"
     echo ""
-    echo "🌐 打开浏览器访问: http://localhost:5173"
+    AUTH_ENABLED_VALUE=$("$PYTHON" -c "from config.settings import settings; print(str(settings.auth.enabled).lower())" 2>/dev/null || echo "false")
+    FRONTEND_URL="http://localhost:5173"
+    if [ "$AUTH_ENABLED_VALUE" = "true" ]; then
+        FRONTEND_URL="http://localhost:5173/login"
+    fi
+    echo "🌐 打开浏览器访问: $FRONTEND_URL"
 
     # 尝试打开浏览器
     if command -v open &> /dev/null; then
         sleep 1
-        open http://localhost:5173 2>/dev/null || true
+        open "$FRONTEND_URL" 2>/dev/null || true
     fi
 else
     echo "❌ 前端启动失败，请检查日志: $LOG_DIR/frontend.log"

@@ -11,9 +11,10 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
-from fastapi import APIRouter, HTTPException, UploadFile, File
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
+from pydantic import BaseModel, Field
 
+from backend.auth import User, SYSTEM_USER, can_access_document, current_user, require_permission
 from research_agent.retrieval.document_loader import DocumentLoader, SUPPORTED_EXTENSIONS
 from research_agent.retrieval.bm25 import BM25Retriever
 from research_agent.retrieval.service import retrieval_service
@@ -38,6 +39,11 @@ def _get_vector_store():
 def _get_bm25() -> BM25Retriever:
     global _bm25
     return _bm25 or retrieval_service.get_bm25()
+
+
+def _effective_user(user: User | object) -> User:
+    """Keep direct unit calls backwards compatible with FastAPI dependencies."""
+    return user if isinstance(user, User) else SYSTEM_USER
 
 
 def _rebuild_bm25_from_vector_store(vs) -> int:
@@ -106,6 +112,12 @@ class DocumentItem(BaseModel):
     chunks: int
     status: str
     uploaded_at: str
+    visibility: str = "private"
+    department_id: str | None = None
+    allowed_departments: list[str] = Field(default_factory=list)
+    owner_id: str | None = None
+    allowed_roles: list[str] = Field(default_factory=list)
+    allowed_users: list[str] = Field(default_factory=list)
 
 
 class DocumentListResponse(BaseModel):
@@ -121,6 +133,20 @@ class DocumentUploadResponse(BaseModel):
 
 
 class DocumentDeleteResponse(BaseModel):
+    success: bool
+    data: dict
+    error: str | None = None
+
+
+class DocumentAccessRequest(BaseModel):
+    visibility: str = "private"
+    department_id: str | None = None
+    allowed_departments: list[str] = Field(default_factory=list)
+    allowed_roles: list[str] = Field(default_factory=list)
+    allowed_users: list[str] = Field(default_factory=list)
+
+
+class DocumentAccessResponse(BaseModel):
     success: bool
     data: dict
     error: str | None = None
@@ -163,14 +189,17 @@ def _scan_chroma_docs() -> list[dict]:
 
 
 @router.get("", response_model=DocumentListResponse)
-async def list_documents():
+async def list_documents(user: User = Depends(current_user)):
     """List all uploaded documents plus ChromaDB-indexed documents."""
+    user = _effective_user(user)
     meta = _read_files_meta()
-    all_files = list(meta["files"])
+    all_files = [item for item in meta["files"] if can_access_document(user, item)]
 
     # Supplement with ChromaDB documents not in files.json
     existing_names = {f["name"] for f in all_files}
     for doc in _scan_chroma_docs():
+        if not can_access_document(user, doc):
+            continue
         if doc["name"] not in existing_names:
             all_files.append(doc)
 
@@ -178,10 +207,28 @@ async def list_documents():
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(
+    file: UploadFile = File(...),
+    visibility: str = Form(default="private"),
+    department_ids: str = Form(default=""),
+    allowed_roles: str = Form(default=""),
+    allowed_users: str = Form(default=""),
+    user: User = Depends(require_permission("document:upload")),
+):
     """Upload a document, chunk it, and index into vector + BM25 stores."""
+    user = _effective_user(user)
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
+    if visibility not in {"private", "department", "departments", "workspace", "roles", "users", "public"}:
+        raise HTTPException(status_code=400, detail="Invalid document visibility")
+    if visibility == "department" and not user.department_id:
+        raise HTTPException(status_code=400, detail="请先加入部门后再使用‘本部门可见’")
+    selected_department_ids = [item.strip() for item in department_ids.split(",") if item.strip()]
+    if visibility == "departments":
+        if not user.is_admin:
+            raise HTTPException(status_code=403, detail="只有管理员可以设置多个部门可见")
+        if not selected_department_ids:
+            raise HTTPException(status_code=400, detail="指定部门可见至少需要一个部门")
 
     safe_filename = _sanitize_filename(file.filename)
     ext = Path(safe_filename).suffix.lower()
@@ -218,6 +265,12 @@ async def upload_document(file: UploadFile = File(...)):
                 "source": safe_filename,
                 "upload_id": file_id,
                 "index_version": INDEX_VERSION,
+                "owner_id": user.id,
+                "department_id": user.department_id or "",
+                "allowed_departments": department_ids,
+                "visibility": visibility,
+                "allowed_roles": allowed_roles,
+                "allowed_users": allowed_users,
             }
             for c in chunks
         ]
@@ -236,6 +289,12 @@ async def upload_document(file: UploadFile = File(...)):
             "chunks": len(chunks),
             "status": "ready",
             "uploaded_at": datetime.now(timezone.utc).isoformat(),
+            "owner_id": user.id,
+            "department_id": user.department_id,
+            "allowed_departments": selected_department_ids,
+            "visibility": visibility,
+            "allowed_roles": [item for item in allowed_roles.split(",") if item],
+            "allowed_users": [item for item in allowed_users.split(",") if item],
         })
         _write_files_meta(meta)
 
@@ -270,8 +329,9 @@ async def upload_document(file: UploadFile = File(...)):
 
 
 @router.delete("/{file_id}", response_model=DocumentDeleteResponse)
-async def delete_document(file_id: str):
+async def delete_document(file_id: str, user: User = Depends(current_user)):
     """Delete a document: remove vector chunks, rebuild BM25, then remove files."""
+    user = _effective_user(user)
     meta = _read_files_meta()
     target = None
     for f in meta["files"]:
@@ -281,6 +341,8 @@ async def delete_document(file_id: str):
 
     if not target:
         raise HTTPException(status_code=404, detail="Document not found")
+    if not user.is_admin and target.get("owner_id") != user.id:
+        raise HTTPException(status_code=403, detail="只能删除自己上传的文档")
 
     file_dir = UPLOAD_DIR / file_id
     vs = _get_vector_store()
@@ -337,3 +399,39 @@ async def delete_document(file_id: str):
             "indexed_chunks": indexed_chunks,
         },
     )
+
+
+@router.patch("/{file_id}/access", response_model=DocumentAccessResponse)
+async def update_document_access(
+    file_id: str,
+    req: DocumentAccessRequest,
+    user: User = Depends(require_permission("document:share")),
+):
+    """Update document visibility.  First phase exposes role/user ACLs to admins."""
+    if req.visibility not in {"private", "department", "departments", "workspace", "roles", "users", "public"}:
+        raise HTTPException(status_code=400, detail="Invalid document visibility")
+    meta = _read_files_meta()
+    target = next((item for item in meta["files"] if item.get("id") == file_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if req.visibility == "roles" and not req.allowed_roles:
+        raise HTTPException(status_code=400, detail="角色可见至少需要一个角色")
+    if req.visibility == "users" and not req.allowed_users:
+        raise HTTPException(status_code=400, detail="指定用户可见至少需要一个用户")
+    if req.visibility == "departments" and not req.allowed_departments:
+        raise HTTPException(status_code=400, detail="指定部门可见至少需要一个部门")
+    target.update({
+        "visibility": req.visibility,
+        "department_id": req.department_id if req.visibility == "department" else None,
+        "allowed_departments": req.allowed_departments if req.visibility == "departments" else [],
+        "allowed_roles": req.allowed_roles,
+        "allowed_users": req.allowed_users,
+    })
+    _write_files_meta(meta)
+    return DocumentAccessResponse(success=True, data={
+        "file_id": file_id,
+        "visibility": req.visibility,
+        "allowed_roles": req.allowed_roles,
+        "allowed_users": req.allowed_users,
+        "updated_by": user.id,
+    })
