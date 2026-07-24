@@ -80,12 +80,18 @@ deep-research-agent/
 │   └── stores/                    # Pinia 状态
 ├── research_agent/
 │   ├── planner/                   # 子问题拆解与依赖规划
+│   ├── nodes/                     # LangGraph 节点实现
+│   │   ├── planning.py            # 规划与研究模式归一化
+│   │   ├── retrieval.py           # 本地/联网/混合检索
+│   │   ├── critique.py            # 质量评估、重试与步骤推进
+│   │   ├── research.py            # 依赖层并发调度
+│   │   └── synthesis.py           # 结果聚合与报告生成
 │   ├── retrieval/                 # Vector、BM25、RRF、Rerank
 │   ├── critique/                  # 相关性/完整性评估与重试
 │   ├── reasoning/                 # 多跳 working memory
 │   ├── synthesis/                 # 报告与引用生成
 │   ├── observability/             # 阶段耗时记录
-│   ├── graph.py                   # LangGraph 主流程
+│   ├── graph.py                   # LangGraph 编排门面
 │   ├── state.py                   # Agent 状态定义
 │   └── streaming.py               # 内存 SSE 事件总线
 ├── scripts/                       # 数据导入与评测脚本

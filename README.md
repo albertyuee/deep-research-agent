@@ -631,6 +631,7 @@ deep-research-agent/
 │   ├── critique/                    # 质量评估与重试控制
 │   ├── evaluation/                  # Hit@K、MRR、来源召回率等评测指标
 │   ├── llm/                         # 多 Provider LLM 客户端
+│   ├── nodes/                       # LangGraph 节点：规划、检索、评估、调度、合成
 │   ├── planner/                     # 查询拆解与研究计划
 │   ├── reasoning/                   # 多跳 working memory 与上下文提取
 │   ├── retrieval/                   # 检索、BM25、Rerank、向量库
@@ -640,7 +641,7 @@ deep-research-agent/
 │   │   ├── service.py               # 共享向量库与 BM25 生命周期
 │   │   └── vector_store.py          # Chroma / Milvus 向量库
 │   ├── synthesis/                   # 报告生成与引用
-│   ├── graph.py                     # LangGraph 编排
+│   ├── graph.py                     # LangGraph 编排门面
 │   └── streaming.py                 # SSE 事件总线
 ├── scripts/                         # 文档索引、开放语料下载等辅助脚本
 ├── tests/                           # 单元与集成测试
