@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Deep Research Agent 系统组件架构</title>
+  <desc id="desc">从左到右展示客户端、FastAPI、业务服务、Agent 与检索核心，以及数据和外部服务。研究执行细节另见 research-flow.svg。</desc>
+  <defs>
+    <style>
+      .t1{font:700 30px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;fill:#172033}
+      .t2{font:400 15px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;fill:#64748b}
+      .lane{font:700 17px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;fill:#334155;text-anchor:middle}
+      .nt{font:700 15px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;fill:#1e293b;text-anchor:middle}
+      .ns{font:400 12px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;fill:#64748b;text-anchor:middle}
+      .el{font:500 11px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;fill:#475569;text-anchor:middle}
+      .box{stroke-width:1.5;rx:13}
+      .edge{fill:none;stroke:#64748b;stroke-width:2;marker-end:url(#a)}
+      .main{fill:none;stroke:#7c3aed;stroke-width:2.4;marker-end:url(#ap)}
+      .permission{fill:none;stroke:#0284c7;stroke-width:2.2;stroke-dasharray:6 5;marker-end:url(#ab)}
+    </style>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0 0v6l8-3z" fill="#64748b"/></marker>
+    <marker id="ap" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0 0v6l8-3z" fill="#7c3aed"/></marker>
+    <marker id="ab" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0 0v6l8-3z" fill="#0284c7"/></marker>
+    <filter id="s" x="-15%" y="-15%" width="130%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#0f172a" flood-opacity=".08"/></filter>
+  </defs>
+
+  <rect width="1600" height="900" fill="#f8fafc"/>
+  <text x="70" y="52" class="t1">Deep Research Agent 系统组件架构</text>
+  <text x="70" y="79" class="t2">组件依赖与数据流；Agent 内部循环单独绘制，避免跨层连线干扰阅读</text>
+
+  <!-- lane backgrounds -->
+  <rect x="45" y="110" width="225" height="700" rx="18" fill="#f5f3ff" stroke="#ddd6fe"/>
+  <rect x="300" y="110" width="245" height="700" rx="18" fill="#eff6ff" stroke="#bfdbfe"/>
+  <rect x="575" y="110" width="275" height="700" rx="18" fill="#f8fafc" stroke="#cbd5e1"/>
+  <rect x="880" y="110" width="300" height="700" rx="18" fill="#faf5ff" stroke="#e9d5ff"/>
+  <rect x="1210" y="110" width="345" height="700" rx="18" fill="#f0fdf4" stroke="#bbf7d0"/>
+
+  <text x="157" y="143" class="lane">客户端</text>
+  <text x="422" y="143" class="lane">API 入口</text>
+  <text x="712" y="143" class="lane">业务服务</text>
+  <text x="1030" y="143" class="lane">研究与检索核心</text>
+  <text x="1382" y="143" class="lane">数据与外部服务</text>
+
+  <!-- client -->
+  <rect x="78" y="195" width="158" height="70" class="box" fill="#fff" stroke="#a78bfa" filter="url(#s)"/>
+  <text x="157" y="225" class="nt">用户 / 浏览器</text><text x="157" y="247" class="ns">登录 · 提问 · 上传</text>
+  <rect x="70" y="340" width="175" height="90" class="box" fill="#ede9fe" stroke="#8b5cf6" filter="url(#s)"/>
+  <text x="157" y="372" class="nt">Vue 3 前端</text><text x="157" y="395" class="ns">研究 · 检索 · 资料</text><text x="157" y="414" class="ns">设置 · 管理后台</text>
+  <path d="M157 265V340" class="main"/>
+
+  <!-- api -->
+  <rect x="335" y="335" width="175" height="100" class="box" fill="#dbeafe" stroke="#60a5fa" filter="url(#s)"/>
+  <text x="422" y="371" class="nt">FastAPI</text><text x="422" y="394" class="ns">REST API 路由</text><text x="422" y="414" class="ns">参数与权限依赖</text>
+  <path d="M245 385H335" class="main"/>
+  <text x="290" y="374" class="el">REST</text>
+
+  <!-- business services -->
+  <rect x="615" y="180" width="195" height="72" class="box" fill="#e0f2fe" stroke="#38bdf8"/>
+  <text x="712" y="210" class="nt">认证与 RBAC</text><text x="712" y="233" class="ns">用户 · 角色 · 部门 · ACL</text>
+  <rect x="615" y="290" width="195" height="72" class="box" fill="#fff" stroke="#94a3b8"/>
+  <text x="712" y="320" class="nt">快速检索</text><text x="712" y="343" class="ns">召回 + LLM 摘要</text>
+  <rect x="615" y="400" width="195" height="72" class="box" fill="#fff" stroke="#94a3b8"/>
+  <text x="712" y="430" class="nt">文档管理</text><text x="712" y="453" class="ns">上传 · 索引 · 删除</text>
+  <rect x="615" y="510" width="195" height="72" class="box" fill="#ede9fe" stroke="#a78bfa"/>
+  <text x="712" y="540" class="nt">研究任务 API</text><text x="712" y="563" class="ns">创建 · 查询 · 取消</text>
+
+  <!-- api fan-out bus -->
+  <path d="M510 385H570V216H615" class="edge"/>
+  <path d="M570 326H615" class="edge"/>
+  <path d="M570 436H615" class="edge"/>
+  <path d="M570 546H615" class="edge"/>
+
+  <!-- core -->
+  <rect x="920" y="275" width="220" height="105" class="box" fill="#ede9fe" stroke="#8b5cf6" filter="url(#s)"/>
+  <text x="1030" y="307" class="nt">共享 Retrieval Service</text>
+  <text x="1030" y="331" class="ns">Vector + BM25 + RRF</text>
+  <text x="1030" y="351" class="ns">可选 Rerank · 权限过滤</text>
+
+  <rect x="920" y="495" width="220" height="72" class="box" fill="#fff" stroke="#a78bfa"/>
+  <text x="1030" y="525" class="nt">内存任务管理器</text><text x="1030" y="548" class="ns">状态 · 归属 · asyncio Task</text>
+  <rect x="920" y="600" width="220" height="82" class="box" fill="#ede9fe" stroke="#8b5cf6" filter="url(#s)"/>
+  <text x="1030" y="631" class="nt">LangGraph Agent</text><text x="1030" y="654" class="ns">规划 · 检索 · 评估 · 合成</text>
+  <rect x="920" y="720" width="220" height="60" class="box" fill="#f5f3ff" stroke="#a78bfa"/>
+  <text x="1030" y="746" class="nt">EventBus + StreamingResponse</text><text x="1030" y="766" class="ns">进度 · 心跳 · 终态</text>
+
+  <!-- business to core -->
+  <path d="M810 326H920" class="main"/>
+  <path d="M810 436H865V350H920" class="edge"/>
+  <text x="865" y="421" class="el">索引 / 删除</text>
+  <path d="M810 546H920" class="main"/>
+  <path d="M1030 567V600" class="main"/>
+  <path d="M920 641H875V380H920" class="main"/>
+  <text x="866" y="504" class="el" transform="rotate(-90 866 504)">研究步骤调用检索</text>
+  <path d="M1030 682V720" class="main"/>
+
+  <!-- permission line, routed above other service lines -->
+  <path d="M810 216H860V255H1030V275" class="permission"/>
+  <text x="930" y="245" class="el">allowed_upload_ids</text>
+
+  <!-- data & providers -->
+  <rect x="1250" y="180" width="265" height="65" class="box" fill="#fff" stroke="#4ade80"/>
+  <text x="1382" y="207" class="nt">SQLite auth.db</text><text x="1382" y="228" class="ns">用户 · 部门 · 会话</text>
+  <rect x="1250" y="285" width="265" height="65" class="box" fill="#fff" stroke="#4ade80"/>
+  <text x="1382" y="312" class="nt">Chroma / Milvus + BM25</text><text x="1382" y="333" class="ns">向量与关键词索引</text>
+  <rect x="1250" y="390" width="265" height="65" class="box" fill="#fff" stroke="#4ade80"/>
+  <text x="1382" y="417" class="nt">上传文件 + files.json</text><text x="1382" y="438" class="ns">文件与访问范围元数据</text>
+  <rect x="1250" y="495" width="265" height="65" class="box" fill="#dcfce7" stroke="#22c55e"/>
+  <text x="1382" y="522" class="nt">LLM Provider</text><text x="1382" y="543" class="ns">SiliconFlow · Qwen · OpenAI</text>
+  <rect x="1250" y="600" width="265" height="65" class="box" fill="#dcfce7" stroke="#22c55e"/>
+  <text x="1382" y="627" class="nt">Embedding / Rerank API</text><text x="1382" y="648" class="ns">本地或兼容服务</text>
+  <rect x="1250" y="705" width="265" height="65" class="box" fill="#dcfce7" stroke="#22c55e"/>
+  <text x="1382" y="732" class="nt">MCP Web Search</text><text x="1382" y="753" class="ns">Tavily，可选</text>
+
+  <!-- owning connections -->
+  <path d="M810 216H1250" class="edge"/>
+  <path d="M1140 327H1250" class="edge"/>
+  <path d="M810 436H1250" class="edge"/>
+  <path d="M1140 320H1190V632H1250" class="edge"/>
+  <text x="1215" y="610" class="el">Embedding / Rerank</text>
+  <path d="M1140 641H1180V527H1250" class="edge"/>
+  <path d="M1140 650H1200V737H1250" class="edge"/>
+
+  <!-- SSE return path around bottom; no crossing with component dependencies -->
+  <path d="M920 750H300V430H245" class="main"/>
+  <text x="565" y="740" class="el">SSE 实时进度</text>
+
+  <!-- quick search also uses LLM summary -->
+  <path d="M810 310H840V170H1160V527H1250" class="edge"/>
+  <text x="1070" y="160" class="el">快速检索摘要调用 LLM</text>
+
+  <text x="70" y="850" class="t2">说明：任务状态与 SSE 缓冲区当前在进程内；文档访问范围先转换为 allowed_upload_ids，再同时过滤向量召回与 BM25。</text>
+</svg>

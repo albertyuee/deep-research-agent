@@ -1,0 +1,11 @@
+flowchart LR
+    Q[复杂问题] --> PLAN[Planner<br/>最多 3 个子问题]
+    PLAN --> SCHEDULE[依赖层调度<br/>并发上限 2]
+    SCHEDULE --> RETRIEVE[检索<br/>本地与联网并发]
+    RETRIEVE --> CRITIQUE[质量评估<br/>相关性 + 完整性]
+    CRITIQUE -->|通过且全部完成| SYNTH[报告合成]
+    SYNTH --> REPORT[带引用报告]
+
+    CRITIQUE -. 未通过：改写查询 .-> RETRIEVE
+    CRITIQUE -->|存在后续依赖| MEMORY[Working Memory<br/>实体 · 事实 · 摘要]
+    MEMORY --> RETRIEVE

@@ -95,68 +95,9 @@
 
 整体采用“Vue 前端 + FastAPI API + LangGraph Agent + 可替换检索后端”的分层结构。浏览器通过 REST 提交任务和读取结果，通过 SSE 接收实时进度；权限过滤在后端进入检索层之前完成，避免只依赖前端隐藏内容。
 
-```mermaid
-flowchart LR
-    U[用户浏览器] --> F[Vue 3 前端<br/>研究 / 快速检索 / 资料 / 管理后台]
+![Deep Research Agent 系统组件架构](docs/assets/system-architecture.svg)
 
-    subgraph APP[应用服务层]
-        API[FastAPI REST API]
-        SSE[SSE 事件流]
-        AUTH[认证与 RBAC<br/>角色 / 部门 / 文档 ACL]
-        TASK[研究任务服务<br/>状态 / 取消 / 归属]
-    end
-
-    F -->|REST 请求| API
-    F -->|实时进度| SSE
-    API --> AUTH
-    API --> TASK
-    SSE --> TASK
-
-    subgraph AGENT[LangGraph Agent 层]
-        PLAN[Planner<br/>最多 3 个子问题]
-        SCHED[依赖层调度<br/>并发上限 2]
-        RETRIEVE[Hybrid Retrieval<br/>Vector + BM25 + RRF]
-        CRITIQUE[质量评估<br/>相关性 / 完整性]
-        MEMORY[Working Memory<br/>实体 / 事实 / 摘要]
-        SYNTH[Synthesis<br/>引用报告]
-        PLAN --> SCHED --> RETRIEVE --> CRITIQUE
-        CRITIQUE -->|低质量：查询改写重试| RETRIEVE
-        CRITIQUE -->|存在后续依赖| MEMORY --> RETRIEVE
-        CRITIQUE -->|全部步骤完成| SYNTH
-    end
-
-    TASK --> PLAN
-    AUTH -->|allowed_upload_ids| RETRIEVE
-    SYNTH --> TASK
-
-    subgraph RETRIEVAL[检索与模型基础设施]
-        VECTOR[(Chroma / Milvus<br/>向量库)]
-        BM25[(BM25 + jieba<br/>关键词索引)]
-        RERANK[Rerank<br/>可选]
-        EMB[Embedding<br/>本地或 API]
-        LLM[LLM Provider<br/>SiliconFlow / Qwen / OpenAI]
-        WEB[MCP Web Search<br/>Tavily，可选]
-    end
-
-    RETRIEVE --> VECTOR
-    RETRIEVE --> BM25
-    RETRIEVE --> RERANK
-    RETRIEVE --> EMB
-    PLAN --> LLM
-    CRITIQUE --> LLM
-    SYNTH --> LLM
-    RETRIEVE -->|本地检索与联网搜索并发| WEB
-
-    subgraph DATA[持久化与观测]
-        DOCS[(上传文档与 files.json)]
-        AUTHDB[(SQLite auth.db<br/>第一期权限数据)]
-        TIMING[阶段计时 / LangSmith<br/>可选追踪]
-    end
-
-    API --> DOCS
-    AUTH --> AUTHDB
-    AGENT --> TIMING
-```
+图中只表达组件边界、依赖和数据流；深度研究内部的循环与条件路由在下方单独展示。可编辑源文件位于 `docs/assets/system-architecture.mmd` 和 `docs/assets/research-flow.mmd`。
 
 ### 要点讲解
 
@@ -168,6 +109,10 @@ flowchart LR
 | 数据与模型 | 文档、权限、向量库、LLM、Embedding 和 Web Search | Chroma/Milvus、LLM Provider 和 Embedding 可替换 |
 
 这套分层让“快速检索”和“深度研究”复用同一套权限过滤与混合检索能力，同时保持执行复杂度不同：快速检索直接召回并总结，深度研究才启用 Planner、Critique、重试和多跳 working memory。
+
+### 深度研究执行链路
+
+![Deep Research Agent 深度研究执行链路](docs/assets/research-flow.svg)
 
 ### Agent 状态流转
 

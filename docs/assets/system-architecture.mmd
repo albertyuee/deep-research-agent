@@ -1,0 +1,27 @@
+flowchart LR
+    USER[用户 / 浏览器] --> UI[Vue 3 前端]
+    UI -->|REST| API[FastAPI API]
+
+    API --> AUTH[认证与 RBAC]
+    API --> QUICK[快速检索]
+    API --> DOC[文档管理]
+    API --> RESEARCH[研究任务 API]
+
+    RESEARCH --> TASK[内存任务管理器]
+    TASK --> AGENT[LangGraph Agent]
+    AGENT --> EVENT[内存 EventBus<br/>FastAPI StreamingResponse]
+    EVENT -->|SSE| UI
+
+    AUTH --> AUTHDB[(SQLite auth.db)]
+    DOC --> FILES[(上传文件 + files.json)]
+    DOC -->|索引 / 删除| RETRIEVAL[共享 Retrieval Service]
+    QUICK --> RETRIEVAL
+    AGENT --> RETRIEVAL
+    AUTH -. allowed_upload_ids .-> RETRIEVAL
+
+    RETRIEVAL --> VECTOR[(Chroma / Milvus)]
+    RETRIEVAL --> KEYWORD[(BM25 + jieba)]
+    RETRIEVAL --> MODEL[Embedding / Rerank API]
+    QUICK --> LLM[LLM Provider]
+    AGENT --> LLM
+    AGENT --> WEB[MCP Web Search]
